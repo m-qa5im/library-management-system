@@ -1,0 +1,24 @@
+# ==========================================
+# 🟩 Node.js / Frontend Exclusions
+# ==========================================
+node_modules/
+.env
+dist/
+.eslintcache
+
+# ==========================================
+# 🟦 .NET Core / Backend Exclusions
+# ==========================================
+bin/
+obj/
+*.suo
+*.user
+.vs/
+appsettings.Development.json
+
+# ==========================================
+# ⚙️ OS / IDE Exclusions
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
