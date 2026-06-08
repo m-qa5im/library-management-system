@@ -1,6 +1,70 @@
-@backend_HostAddress = http://localhost:5117
+@hostname = localhost
+@port = 5117
+@host = http://{{hostname}}:{{port}}
 
-GET {{backend_HostAddress}}/weatherforecast/
+### Case 1: Fetch System Diagnostic Heartbeat
+GET {{host}}/system
 Accept: application/json
 
 ###
+
+### Case 2: Fetch Current Available Book Inventory STOCK
+GET {{host}}/books/available
+Accept: application/json
+
+###
+
+### Case 3: Insert a New Literary Asset Into the Catalog
+POST {{host}}/books
+Content-Type: application/json
+Accept: application/json
+
+{
+    "title": "Clean Code",
+    "author": "Robert C. Martin",
+    "category": "Software Engineering",
+    "description": "A handbook of agile software craftsmanship."
+}
+
+###
+
+### Case 4: Validation Error Test Case (Deliberate Blank Title)
+POST {{host}}/books
+Content-Type: application/json
+
+{
+    "title": "",
+    "author": "Martin Fowler",
+    "category": "Refactoring"
+}
+
+### Case 5: Execute Book Issue Transaction Workflow
+POST http://localhost:5117/transactions/issue
+Content-Type: application/json
+
+{
+    "bookId": 1,
+    "memberId": 1
+}
+
+###
+
+### Case 6: Double-Issue Concurrency Validation Check (Should Throw Error 400)
+POST http://localhost:5117/transactions/issue
+Content-Type: application/json
+
+{
+    "bookId": 1,
+    "memberId": 2
+}
+
+###
+
+### Case 7: Execute Book Return Transaction Workflow
+POST http://localhost:5117/transactions/return
+Content-Type: application/json
+
+{
+    "bookId": 1,
+    "memberId": 1
+}
