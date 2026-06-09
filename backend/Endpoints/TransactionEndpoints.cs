@@ -1,6 +1,8 @@
 using backend.Interfaces;
 using backend.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace backend.Endpoints
 {
@@ -10,6 +12,7 @@ namespace backend.Endpoints
         {
             var group = app.MapGroup("/transactions");
 
+            // POST /transactions/issue - Admin only
             group.MapPost("/issue", async ([FromBody] IssueBookDto dto, 
                 IGenericRepository<User> userRepo,
                 IGenericRepository<Member> memberRepo,
@@ -53,9 +56,9 @@ namespace backend.Endpoints
                 await transactionRepo.SaveChangesAsync();
 
                 return Results.Ok(new { Message = "Book issued successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
-            });
+            }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
-            
+            // POST /transactions/return - Admin only
             group.MapPost("/return", async ([FromBody] ReturnBookDto dto, 
                 IBookRepository bookRepo,
                 IGenericRepository<BookTransaction> transactionRepo) =>
@@ -86,22 +89,44 @@ namespace backend.Endpoints
 
                 await transactionRepo.SaveChangesAsync();
                 return Results.Ok(new { Message = "Book returned and inventory updated successfully." });
-            });
+            }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
-            // GET /transactions/my-loans/{memberId} - Fetch all active checked-out titles for a member dashboard
-            group.MapGet("/my-loans/{memberId:int}", async (int memberId, IGenericRepository<BookTransaction> transactionRepo) =>
+            // GET /transactions/my-loans/{memberId} - Fetch all active checked-out titles for a member (Self-user or Admin)
+            group.MapGet("/my-loans/{memberId:int}", async (int memberId, 
+                IGenericRepository<BookTransaction> transactionRepo,
+                IGenericRepository<Member> memberRepo,
+                ClaimsPrincipal userPrincipal) =>
             {
+                var currentUserIdClaim = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var currentUserRole = userPrincipal.FindFirst(ClaimTypes.Role)?.Value;
+
+                // Enforce that Members can only retrieve their own loans. Admins can view any loans.
+                if (currentUserRole != "Admin")
+                {
+                    if (string.IsNullOrEmpty(currentUserIdClaim) || !int.TryParse(currentUserIdClaim, out var userId))
+                    {
+                        return Results.Json(new { error = "Forbidden: Invalid credentials context." }, statusCode: 403);
+                    }
+
+                    var memberProfiles = await memberRepo.FindAsync(m => m.UserId == userId);
+                    var memberProfile = memberProfiles.FirstOrDefault();
+                    if (memberProfile == null || memberProfile.Id != memberId)
+                    {
+                        return Results.Json(new { error = "Forbidden: You do not have permission to view this member's loan history." }, statusCode: 403);
+                    }
+                }
+
                 // Retrieve historical lines where return date is null
                 var activeLoans = await transactionRepo.FindAsync(t => t.MemberId == memberId && t.ReturnDate == null);
                 return Results.Ok(activeLoans);
-            });
+            }).RequireAuthorization();
 
             // GET /transactions - Fetch all library transaction records (Admin Overview Log)
             group.MapGet("/", async (IGenericRepository<BookTransaction> transactionRepo) =>
             {
                 var histories = await transactionRepo.GetAllAsync();
                 return Results.Ok(histories);
-            });
+            }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
         }
     }
 

@@ -40,12 +40,18 @@ export async function loginUser(payload) {
   return handleResponse(response);
 }
 
-export async function getMemberProfile(userId) {
+export async function getMemberProfile(userId, token) {
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/users/${userId}/member-profile`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
   });
 
   return handleResponse(response);

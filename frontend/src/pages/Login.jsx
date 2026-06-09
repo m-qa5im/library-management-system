@@ -77,6 +77,7 @@ export default function Login() {
           userId: loginResponse.userId,
           role: loginResponse.role,
           name: loginResponse.name,
+          token: loginResponse.token,
         });
 
         navigate('/dashboard', { replace: true });
@@ -84,12 +85,13 @@ export default function Login() {
       }
 
       if (loginResponse.role === 'Member') {
-        const memberProfile = await getMemberProfile(loginResponse.userId);
+        const memberProfile = await getMemberProfile(loginResponse.userId, loginResponse.token);
 
         login({
           userId: loginResponse.userId,
           role: loginResponse.role,
           name: loginResponse.name,
+          token: loginResponse.token,
           memberId: memberProfile.id,
           memberCode: memberProfile.memberCode,
           memberStatus: memberProfile.status,
@@ -119,11 +121,11 @@ export default function Login() {
           <p className="auth-subtitle">Access your Admin or Member portal.</p>
 
           <div className="auth-tabs" aria-label="Authentication navigation">
-            <Link to="/login" className="auth-tab auth-tab-active">
+            <Link replace to="/login" className="auth-tab auth-tab-active">
               Login
             </Link>
 
-            <Link to="/signup" className="auth-tab">
+            <Link replace to="/signup" className="auth-tab">
               Signup
             </Link>
           </div>

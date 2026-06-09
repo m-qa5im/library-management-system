@@ -36,12 +36,29 @@ export default function Signup() {
       return 'Email address is required.';
     }
 
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      return 'Invalid email address format.';
+    }
+
     if (!formData.password.trim()) {
       return 'Password is required.';
     }
 
-    if (formData.password.length < 6) {
-      return 'Password must contain at least 6 characters.';
+    if (formData.password.length < 8) {
+      return 'Password must contain at least 8 characters.';
+    }
+
+    if (!/[A-Z]/.test(formData.password)) {
+      return 'Password must contain at least one uppercase letter.';
+    }
+
+    if (!/[a-z]/.test(formData.password)) {
+      return 'Password must contain at least one lowercase letter.';
+    }
+
+    if (!/[0-9]/.test(formData.password)) {
+      return 'Password must contain at least one numeric digit.';
     }
 
     if (formData.password !== formData.confirmPassword) {
@@ -98,10 +115,10 @@ export default function Signup() {
           <p className="auth-subtitle">Create your Member portal account.</p>
 
           <div className="auth-tabs" aria-label="Authentication navigation">
-            <Link to="/login" className="auth-tab">
+            <Link replace to="/login" className="auth-tab">
               Login
             </Link>
-            <Link to="/signup" className="auth-tab auth-tab-active">
+            <Link replace to="/signup" className="auth-tab auth-tab-active">
               Signup
             </Link>
           </div>
