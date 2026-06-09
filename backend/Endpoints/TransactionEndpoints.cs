@@ -10,9 +10,6 @@ namespace backend.Endpoints
         {
             var group = app.MapGroup("/transactions");
 
-            // ==========================================================
-            // 🟩 WORKFLOW 1: ISSUE / CHECKOUT A BOOK
-            // ==========================================================
             group.MapPost("/issue", async ([FromBody] IssueBookDto dto, 
                 IGenericRepository<User> userRepo,
                 IGenericRepository<Member> memberRepo,
@@ -58,9 +55,7 @@ namespace backend.Endpoints
                 return Results.Ok(new { Message = "Book issued successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
             });
 
-            // ==========================================================
-            // 🟦 WORKFLOW 2: RETURN A BORROWED BOOK
-            // ==========================================================
+            
             group.MapPost("/return", async ([FromBody] ReturnBookDto dto, 
                 IBookRepository bookRepo,
                 IGenericRepository<BookTransaction> transactionRepo) =>
@@ -91,6 +86,21 @@ namespace backend.Endpoints
 
                 await transactionRepo.SaveChangesAsync();
                 return Results.Ok(new { Message = "Book returned and inventory updated successfully." });
+            });
+
+            // GET /transactions/my-loans/{memberId} - Fetch all active checked-out titles for a member dashboard
+            group.MapGet("/my-loans/{memberId:int}", async (int memberId, IGenericRepository<BookTransaction> transactionRepo) =>
+            {
+                // Retrieve historical lines where return date is null
+                var activeLoans = await transactionRepo.FindAsync(t => t.MemberId == memberId && t.ReturnDate == null);
+                return Results.Ok(activeLoans);
+            });
+
+            // GET /transactions - Fetch all library transaction records (Admin Overview Log)
+            group.MapGet("/", async (IGenericRepository<BookTransaction> transactionRepo) =>
+            {
+                var histories = await transactionRepo.GetAllAsync();
+                return Results.Ok(histories);
             });
         }
     }

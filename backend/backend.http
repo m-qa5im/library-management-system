@@ -2,44 +2,72 @@
 @port = 5117
 @host = http://{{hostname}}:{{port}}
 
-### Case 1: Fetch System Diagnostic Heartbeat
+### Test Case 1: Fetch Diagnostic Operational Heartbeat Status
+# Expected Result: HTTP 200 OK | Plain text verification payload string.
 GET {{host}}/system
 Accept: application/json
 
 ###
 
-### Case 2: Fetch Current Available Book Inventory STOCK
+### Test Case 2: Fetch Current Available Literature Stock (Initially Empty)
+# Expected Result: HTTP 200 OK | Raw JSON Array [].
 GET {{host}}/books/available
 Accept: application/json
 
 ###
 
-### Case 3: Insert a New Literary Asset Into the Catalog
+### Test Case 3: Insert Book Asset 1 (Clean Architecture Manual)
+# Expected Result: HTTP 201 Created | Complete JSON body echoing generated ID 1.
 POST {{host}}/books
 Content-Type: application/json
 Accept: application/json
 
 {
-    "title": "Clean Code",
+    "title": "Clean Architecture",
     "author": "Robert C. Martin",
     "category": "Software Engineering",
-    "description": "A handbook of agile software craftsmanship."
+    "description": "A craftsman's guide to software structure and design."
 }
 
 ###
 
-### Case 4: Validation Error Test Case (Deliberate Blank Title)
+### Test Case 4: Insert Book Asset 2 (Test-Driven Development Guide)
+# Expected Result: HTTP 201 Created | Complete JSON body echoing generated ID 2.
+POST {{host}}/books
+Content-Type: application/json
+Accept: application/json
+
+{
+    "title": "Test-Driven Development",
+    "author": "Kent Beck",
+    "category": "Agile Practices",
+    "description": "By example methodology breakdown."
+}
+
+###
+
+### Test Case 5: Re-Fetch Available Stock (Confirming Catalog Additions)
+# Expected Result: HTTP 200 OK | JSON Array populated with Book objects 1 and 2.
+GET {{host}}/books/available
+Accept: application/json
+
+###
+
+### Test Case 6: Input Field Data Validation Check (Deliberate Empty Title)
+# Expected Result: HTTP 400 Bad Request | Explicit text error response warning.
 POST {{host}}/books
 Content-Type: application/json
 
 {
     "title": "",
     "author": "Martin Fowler",
-    "category": "Refactoring"
+    "category": "Refactoring Architecture"
 }
 
-### Case 5: Execute Book Issue Transaction Workflow
-POST http://localhost:5117/transactions/issue
+###
+### Test Case 7: Execute Book Checkout Workflow (Issue Asset 1 to Member 1)
+# Expected Result: HTTP 200 OK | Success message token, matching TransactionId, and calculated +14 day due date.
+POST {{host}}/transactions/issue
 Content-Type: application/json
 
 {
@@ -49,22 +77,50 @@ Content-Type: application/json
 
 ###
 
-### Case 6: Double-Issue Concurrency Validation Check (Should Throw Error 400)
-POST http://localhost:5117/transactions/issue
-Content-Type: application/json
-
-{
-    "bookId": 1,
-    "memberId": 2
-}
-
-###
-
-### Case 7: Execute Book Return Transaction Workflow
-POST http://localhost:5117/transactions/return
+### Test Case 8: Concurrency/Availability Check (Attempt to Double-Issue Asset 1)
+# Expected Result: HTTP 400 Bad Request | "The requested book catalog asset is currently unavailable for loan."
+POST {{host}}/transactions/issue
 Content-Type: application/json
 
 {
     "bookId": 1,
     "memberId": 1
 }
+
+###
+
+### Test Case 9: Confirm Stock Reduction (Asset 1 should be omitted from available views)
+# Expected Result: HTTP 200 OK | JSON Array showing ONLY Book 2 ("Test-Driven Development").
+GET {{host}}/books/available
+Accept: application/json
+
+###
+
+### Test Case 10: Execute Book Check-In Return Workflow (Release Asset 1)
+# Expected Result: HTTP 200 OK | "Book returned and inventory updated successfully."
+POST {{host}}/transactions/return
+Content-Type: application/json
+
+{
+    "bookId": 1,
+    "memberId": 1
+}
+
+###
+
+### Test Case 11: Idempotency Return Check (Attempting to re-return already shelved book)
+# Expected Result: HTTP 404 Not Found | "No active tracking transaction record found for this explicit Book-Member pair."
+POST {{host}}/transactions/return
+Content-Type: application/json
+
+{
+    "bookId": 1,
+    "memberId": 1
+}
+
+###
+
+### Test Case 12: Confirm Complete Inventory Inventory Reset
+# Expected Result: HTTP 200 OK | JSON Array displaying both Book 1 and Book 2 safely back on the shelves.
+GET {{host}}/books/available
+Accept: application/json

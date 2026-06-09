@@ -1,6 +1,6 @@
 namespace backend.DTOs
 {
-    // Payload accepted when adding a new book to the library system
+    
     public record CreateBookDTO(
         string Title,
         string Author,
@@ -8,7 +8,7 @@ namespace backend.DTOs
         string? Description
     );
 
-    // Payload sent back to the frontend/client application
+    
     public record BookResponseDTO(
         int Id,
         string Title,
@@ -16,4 +16,6 @@ namespace backend.DTOs
         string Category,
         string AvailabilityStatus
     );
+
+    public record BookUpdateDto(string? Title, string? Author, string? Category, string? Description, string? AvailabilityStatus);
 }
