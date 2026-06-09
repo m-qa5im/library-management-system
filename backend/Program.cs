@@ -1,5 +1,5 @@
 using backend.Data;
-using backend.Endpoints; // Enforce our new module boundary
+using backend.Endpoints;
 using backend.Interfaces;
 using backend.Middleware;
 using backend.Repositories;
@@ -7,17 +7,28 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Establish database context
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Register data abstractions
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
@@ -34,10 +45,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors("FrontendPolicy");
+
 app.MapUserEndpoints();
 app.MapBookEndpoints();
 app.MapMemberEndpoints();
-app.MapTransactionEndpoints(); 
+app.MapTransactionEndpoints();
 
 app.MapGet("/", () => "System running smoothly without API prefix boundaries.");
 

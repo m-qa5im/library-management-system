@@ -2,6 +2,7 @@ using backend.Interfaces;
 using backend.Models;
 using backend.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using BCryptNet = BCrypt.Net.BCrypt; // Standard cryptographic engine alias
 
 namespace backend.Endpoints
 {
@@ -11,7 +12,9 @@ namespace backend.Endpoints
         {
             var group = app.MapGroup("/users");
 
-            // POST /users/register - Create a new user identity
+            // ==========================================================
+            // 🟩 POST /users/register - Create a new user identity with hashing
+            // ==========================================================
             group.MapPost("/register", async ([FromBody] UserRegisterDto dto, IGenericRepository<User> userRepo) =>
             {
                 if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
@@ -25,11 +28,14 @@ namespace backend.Endpoints
                     return Results.BadRequest("A user record with this email address already exists.");
                 }
 
+                // SECURE MECHANISM: Compute a one-way salt and hash of the text password
+                string secureHash = BCryptNet.HashPassword(dto.Password, workFactor: 11);
+
                 var newUser = new User
                 {
                     FullName = dto.FullName,
                     Email = dto.Email,
-                    PasswordHash = dto.Password, // Note: Production code hashes this string
+                    PasswordHash = secureHash, // Store the un-reversible mathematical string footprint
                     Role = dto.Role,
                     IsActive = true
                 };
@@ -40,13 +46,17 @@ namespace backend.Endpoints
                 return Results.Created($"/users/{newUser.Id}", new { newUser.Id, newUser.Email, newUser.Role });
             });
 
-            // POST /users/login - Basic identity validation endpoint
+            // ==========================================================
+            // 🔑 POST /users/login - Verify hashed credentials securely
+            // ==========================================================
             group.MapPost("/login", async ([FromBody] UserLoginDto dto, IGenericRepository<User> userRepo) =>
             {
-                var users = await userRepo.FindAsync(u => u.Email == dto.Email && u.PasswordHash == dto.Password);
+                // Query primarily by email match first to pull matching profile entry
+                var users = await userRepo.FindAsync(u => u.Email == dto.Email);
                 var user = users.FirstOrDefault();
 
-                if (user == null || !user.IsActive)
+                // SECURE MECHANISM: Verify clear-text login string against database hash entry
+                if (user == null || !user.IsActive || !BCryptNet.Verify(dto.Password, user.PasswordHash))
                 {
                     return Results.Json(new { error = "Invalid email identity or invalid account password credentials." }, statusCode: 401);
                 }
@@ -54,7 +64,9 @@ namespace backend.Endpoints
                 return Results.Ok(new { Message = "Authentication verified successfully.", UserId = user.Id, Role = user.Role, Name = user.FullName });
             });
 
-            // GET /users/{userId}/member-profile - Link login identity to library profile
+            // ==========================================================
+            // 🟨 GET /users/{userId}/member-profile - Link login identity to library profile
+            // ==========================================================
             group.MapGet("/{userId:int}/member-profile", async (int userId, IGenericRepository<Member> memberRepo) =>
             {
                 var profiles = await memberRepo.FindAsync(m => m.UserId == userId);
