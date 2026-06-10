@@ -5,10 +5,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-//import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/Dashboard';
 
-// Replace this with your real member page when ready
-//import MemberDashboard from './pages/MemberDashboard';
+import MemberDashboard from './pages/MemberDashboard';
 
 function App() {
   return (
@@ -20,7 +19,7 @@ function App() {
 
       {/* Admin-only routes */}
       <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
-        {/* <Route path="/dashboard" element={<Dashboard />} /> */}
+        <Route path="/dashboard" element={<Dashboard />} />
 
         {/* Add future admin-only pages here */}
         {/* <Route path="/books" element={<BooksPage />} /> */}
@@ -30,7 +29,7 @@ function App() {
 
       {/* Member-only routes */}
       <Route element={<ProtectedRoute allowedRoles={['Member']} />}>
-        {/* <Route path="/member-dashboard" element={<MemberDashboard />} /> */}
+        <Route path="/member-dashboard" element={<MemberDashboard />} />
 
         {/* Add future member-only pages here */}
         {/* <Route path="/catalog" element={<CatalogPage />} /> */}
