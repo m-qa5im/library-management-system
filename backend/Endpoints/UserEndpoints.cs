@@ -7,6 +7,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Endpoints
 {
@@ -19,7 +20,9 @@ namespace backend.Endpoints
             // ==========================================================
             // 🟩 POST /users/register - Create a new user identity with hashing
             // ==========================================================
-            group.MapPost("/register", async ([FromBody] UserRegisterDto dto, IGenericRepository<User> userRepo) =>
+            group.MapPost("/register", async ([FromBody] UserRegisterDto dto, 
+                IGenericRepository<User> userRepo,
+                IGenericRepository<Member> memberRepo) =>
             {
                 if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
                 {
@@ -72,6 +75,20 @@ namespace backend.Endpoints
 
                 await userRepo.AddAsync(newUser);
                 await userRepo.SaveChangesAsync();
+
+                if (newUser.Role == "Member")
+                {
+                    var newMember = new Member
+                    {
+                        UserId = newUser.Id,
+                        MemberCode = $"MEM{newUser.Id:D4}",
+                        Status = "Active",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    await memberRepo.AddAsync(newMember);
+                    await memberRepo.SaveChangesAsync();
+                }
 
                 return Results.Created($"/users/{newUser.Id}", new { newUser.Id, newUser.Email, newUser.Role });
             });
@@ -143,11 +160,31 @@ namespace backend.Endpoints
 
                 if (profile == null)
                 {
-                    return Results.NotFound("No library member profile associated with this user identity.");
+                    // Safe Fallback: Auto-create member profile for existing registered users of role Member
+                    profile = new Member
+                    {
+                        UserId = userId,
+                        MemberCode = $"MEM{userId:D4}",
+                        Status = "Active",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    await memberRepo.AddAsync(profile);
+                    await memberRepo.SaveChangesAsync();
                 }
 
                 return Results.Ok(profile);
             }).RequireAuthorization();
+
+            // ==========================================================
+            // 👥 GET /users - Fetch all users in the system (Admin only)
+            // ==========================================================
+            group.MapGet("/", async (IGenericRepository<User> userRepo) =>
+            {
+                var users = await userRepo.GetAllAsync();
+                var userDtos = users.Select(u => new { u.Id, u.FullName, u.Email, u.Role, u.IsActive });
+                return Results.Ok(userDtos);
+            }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
         }
     }
 }

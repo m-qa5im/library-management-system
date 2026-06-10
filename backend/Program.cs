@@ -99,7 +99,38 @@ app.MapUserEndpoints();
 app.MapBookEndpoints();
 app.MapMemberEndpoints();
 app.MapTransactionEndpoints();
+app.MapDashboardEndpoints();
 
 app.MapGet("/", () => "System running smoothly without API prefix boundaries.");
+
+// Seed Default Admin User if not exists
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        // Check if database connection works and table exists
+        if (!dbContext.Users.Any(u => u.Role == "Admin"))
+        {
+            var adminUser = new backend.Models.User
+            {
+                FullName = "System Administrator",
+                Email = "admin@library.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!", workFactor: 11),
+                Role = "Admin",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            dbContext.Users.Add(adminUser);
+            dbContext.SaveChanges();
+            Console.WriteLine("--> Seeded default admin user (admin@library.com / Admin123!)");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"--> Seeding error: {ex.Message}");
+    }
+}
 
 app.Run();

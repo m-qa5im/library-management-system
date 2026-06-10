@@ -42,6 +42,14 @@ namespace backend.Models
         [Column("updated_at")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        [MaxLength(500)]
+        [Column("cover_image_url")]
+        public string? CoverImageUrl { get; set; }
+
+        [MaxLength(20)]
+        [Column("isbn")]
+        public string? Isbn { get; set; }
+
         // Relational Links
         public ICollection<BookTransaction> Transactions { get; set; } = new List<BookTransaction>();
     }

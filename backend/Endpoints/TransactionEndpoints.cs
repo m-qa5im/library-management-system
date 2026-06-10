@@ -3,6 +3,8 @@ using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using backend.Data;
 
 namespace backend.Endpoints
 {
@@ -91,9 +93,60 @@ namespace backend.Endpoints
                 return Results.Ok(new { Message = "Book returned and inventory updated successfully." });
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
+            // POST /transactions/borrow - Member self-borrow (Member only)
+            group.MapPost("/borrow", async ([FromBody] BorrowBookDto dto,
+                ClaimsPrincipal userPrincipal,
+                IGenericRepository<Member> memberRepo,
+                IBookRepository bookRepo,
+                IGenericRepository<BookTransaction> transactionRepo) =>
+            {
+                // 1. Resolve logged-in user and linked Member profile
+                var currentUserIdClaim = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(currentUserIdClaim) || !int.TryParse(currentUserIdClaim, out var userId))
+                {
+                    return Results.Json(new { error = "Forbidden: Invalid credentials context." }, statusCode: 403);
+                }
+
+                var memberProfiles = await memberRepo.FindAsync(m => m.UserId == userId);
+                var member = memberProfiles.FirstOrDefault();
+                if (member == null || member.Status != "Active")
+                {
+                    return Results.BadRequest("Invalid member profile or account is currently suspended.");
+                }
+
+                // 2. Verify Book exists and is available
+                var book = await bookRepo.GetByIdAsync(dto.BookId);
+                if (book == null || !book.IsActive || book.AvailabilityStatus != "Available")
+                {
+                    return Results.BadRequest("The requested book is currently unavailable for loan.");
+                }
+
+                // 3. Mutate Book Inventory State
+                book.AvailabilityStatus = "Issued";
+                book.UpdatedAt = DateTime.UtcNow;
+                bookRepo.Update(book);
+
+                // 4. Generate transaction ledger
+                var transaction = new BookTransaction
+                {
+                    BookId = dto.BookId,
+                    MemberId = member.Id,
+                    IssueDate = DateTime.UtcNow,
+                    DueDate = DateTime.UtcNow.AddDays(14),
+                    Status = "Issued",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                await transactionRepo.AddAsync(transaction);
+                await transactionRepo.SaveChangesAsync();
+
+                return Results.Ok(new { Message = "Book borrowed successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
+            }).RequireAuthorization(new AuthorizeAttribute { Roles = "Member" });
+
             // GET /transactions/my-loans/{memberId} - Fetch all active checked-out titles for a member (Self-user or Admin)
             group.MapGet("/my-loans/{memberId:int}", async (int memberId, 
-                IGenericRepository<BookTransaction> transactionRepo,
+                AppDbContext dbContext,
                 IGenericRepository<Member> memberRepo,
                 ClaimsPrincipal userPrincipal) =>
             {
@@ -117,14 +170,22 @@ namespace backend.Endpoints
                 }
 
                 // Retrieve historical lines where return date is null
-                var activeLoans = await transactionRepo.FindAsync(t => t.MemberId == memberId && t.ReturnDate == null);
+                var activeLoans = await dbContext.BookTransactions
+                    .Include(t => t.Book)
+                    .Where(t => t.MemberId == memberId && t.ReturnDate == null)
+                    .ToListAsync();
                 return Results.Ok(activeLoans);
             }).RequireAuthorization();
 
             // GET /transactions - Fetch all library transaction records (Admin Overview Log)
-            group.MapGet("/", async (IGenericRepository<BookTransaction> transactionRepo) =>
+            group.MapGet("/", async (AppDbContext dbContext) =>
             {
-                var histories = await transactionRepo.GetAllAsync();
+                var histories = await dbContext.BookTransactions
+                    .Include(t => t.Book)
+                    .Include(t => t.Member)
+                        .ThenInclude(m => m.User)
+                    .OrderByDescending(t => t.IssueDate)
+                    .ToListAsync();
                 return Results.Ok(histories);
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
         }
@@ -133,4 +194,5 @@ namespace backend.Endpoints
     // Modular Data Transfer Object Contracts
     public record IssueBookDto(int BookId, int MemberId);
     public record ReturnBookDto(int BookId, int MemberId);
+    public record BorrowBookDto(int BookId);
 }
