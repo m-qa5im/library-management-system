@@ -12,7 +12,10 @@ import {
   issueBook,
   returnBook,
   registerAndCreateMember,
+  registerUser,
 } from '../services/adminService';
+import BookInventoryPanel from '../components/BookInventoryPanel';
+import MemberInventoryPanel from '../components/MemberInventoryPanel';
 import './Dashboard.css';
 import shelfBannerImg from '../assets/library_shelf_banner.png';
 
@@ -20,6 +23,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { authUser, logout } = useAuth();
   const token = authUser?.token;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ─── CORE DASHBOARD DATA STATE ───
   const [stats, setStats] = useState({
@@ -34,6 +38,9 @@ export default function Dashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // ─── VIEW STATE ───
+  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' | 'books'
 
   // ─── SEARCH / TABLE FILTER STATE ───
   const [searchText, setSearchText] = useState('');
@@ -81,9 +88,9 @@ export default function Dashboard() {
   });
 
   // ─── LOAD DATA FUNCTION ───
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError('');
       if (!token) return;
 
@@ -104,7 +111,7 @@ export default function Dashboard() {
       console.error(err);
       setError(err.message || 'Failed to load system dashboard analytics.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -126,12 +133,30 @@ export default function Dashboard() {
     setSubmitting(false);
     // Reset Forms
     setBookForm({ title: '', author: '', category: 'General', description: '', coverImageUrl: '', isbn: '' });
-    setMemberForm({ userId: '', memberCode: '', fullName: '', email: '', password: '' });
+    setMemberForm({ userId: '', memberCode: '', fullName: '', email: '', password: '', role: 'Member' });
     setIssueForm({ bookSearch: '', bookId: '', memberSearch: '', memberId: '' });
     setReturnForm({ selectedTransactionId: '' });
     setBookSuggestions([]);
     setMemberSuggestions([]);
   };
+
+  // Automatically generate cover image URL when entering isbn in Add Book Form
+  useEffect(() => {
+    if (bookForm.isbn && bookForm.isbn.trim()) {
+      const sanitized = bookForm.isbn.replace(/[- ]/g, "").trim();
+      if (sanitized.length === 10 || sanitized.length === 13) {
+        setBookForm(prev => {
+          if (!prev.coverImageUrl || prev.coverImageUrl.includes('covers.openlibrary.org/b/isbn/')) {
+            return {
+              ...prev,
+              coverImageUrl: `https://covers.openlibrary.org/b/isbn/${sanitized}-L.jpg?default=false`
+            };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [bookForm.isbn]);
 
   // ─── AUTO-SUGGEST FILTERING FOR ISSUE BOOK ───
   useEffect(() => {
@@ -178,7 +203,7 @@ export default function Dashboard() {
       setModalSuccess('Book asset added successfully to inventory!');
       setTimeout(() => {
         closeModal();
-        loadDashboardData();
+        loadDashboardData(true);
       }, 1000);
     } catch (err) {
       setModalError(err.message || 'Failed to add book asset.');
@@ -189,16 +214,17 @@ export default function Dashboard() {
 
   const handleAddMemberSubmit = async (e) => {
     e.preventDefault();
-    if (!memberForm.memberCode.trim()) {
-      setModalError('Member Code is required.');
-      return;
-    }
 
-    try {
-      setSubmitting(true);
-      setModalError('');
+    if (memberTab === 'link') {
+      if (!memberForm.memberCode.trim()) {
+        setModalError('Member Code is required.');
+        return;
+      }
 
-      if (memberTab === 'link') {
+      try {
+        setSubmitting(true);
+        setModalError('');
+
         if (!memberForm.userId) {
           setModalError('Please select a User account to link.');
           setSubmitting(false);
@@ -211,34 +237,90 @@ export default function Dashboard() {
           },
           token
         );
-      } else {
-        // Register Tab
-        if (!memberForm.fullName.trim() || !memberForm.email.trim() || !memberForm.password.trim()) {
-          setModalError('All user fields are required to register a member profile.');
-          setSubmitting(false);
-          return;
-        }
-        await registerAndCreateMember(
-          {
+        setModalSuccess('Member profile established successfully.');
+        setTimeout(() => {
+          closeModal();
+          loadDashboardData(true);
+        }, 1000);
+      } catch (err) {
+        setModalError(err.message || 'Failed to establish member profile.');
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Register Tab
+      if (!memberForm.fullName.trim() || !memberForm.email.trim() || !memberForm.password.trim()) {
+        setModalError('All user fields are required to register.');
+        return;
+      }
+
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(memberForm.email.trim())) {
+        setModalError('Invalid email address format.');
+        return;
+      }
+
+      if (memberForm.password.length < 8) {
+        setModalError('Password must contain at least 8 characters.');
+        return;
+      }
+
+      if (!/[A-Z]/.test(memberForm.password)) {
+        setModalError('Password must contain at least one uppercase letter.');
+        return;
+      }
+
+      if (!/[a-z]/.test(memberForm.password)) {
+        setModalError('Password must contain at least one lowercase letter.');
+        return;
+      }
+
+      if (!/[0-9]/.test(memberForm.password)) {
+        setModalError('Password must contain at least one numeric digit.');
+        return;
+      }
+
+      const role = memberForm.role || 'Member';
+      if (role === 'Member' && !memberForm.memberCode.trim()) {
+        setModalError('Library Card ID / Member Code is required for Member accounts.');
+        return;
+      }
+
+      try {
+        setSubmitting(true);
+        setModalError('');
+
+        if (role === 'Admin') {
+          await registerUser({
             fullName: memberForm.fullName.trim(),
             email: memberForm.email.trim(),
             password: memberForm.password,
-            role: 'Member',
-          },
-          memberForm.memberCode.trim(),
-          token
-        );
-      }
+            role: 'Admin',
+          });
+          setModalSuccess('Administrator profile registered successfully.');
+        } else {
+          await registerAndCreateMember(
+            {
+              fullName: memberForm.fullName.trim(),
+              email: memberForm.email.trim(),
+              password: memberForm.password,
+              role: 'Member',
+            },
+            memberForm.memberCode.trim(),
+            token
+          );
+          setModalSuccess('Member profile registered and established successfully.');
+        }
 
-      setModalSuccess('Member profile established successfully.');
-      setTimeout(() => {
-        closeModal();
-        loadDashboardData();
-      }, 1000);
-    } catch (err) {
-      setModalError(err.message || 'Failed to establish member profile.');
-    } finally {
-      setSubmitting(false);
+        setTimeout(() => {
+          closeModal();
+          loadDashboardData(true);
+        }, 1000);
+      } catch (err) {
+        setModalError(err.message || 'Failed to register account.');
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -262,7 +344,7 @@ export default function Dashboard() {
       setModalSuccess('Book asset issued successfully!');
       setTimeout(() => {
         closeModal();
-        loadDashboardData();
+        loadDashboardData(true);
       }, 1000);
     } catch (err) {
       setModalError(err.message || 'Failed to loan selected asset.');
@@ -297,7 +379,7 @@ export default function Dashboard() {
       setModalSuccess('Circulation register updated. Asset returned successfully!');
       setTimeout(() => {
         closeModal();
-        loadDashboardData();
+        loadDashboardData(true);
       }, 1000);
     } catch (err) {
       setModalError(err.message || 'Failed to complete book return transaction.');
@@ -346,27 +428,68 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-container">
+      {/* Sidebar Backdrop Overlay on Mobile */}
+      {sidebarOpen && (
+        <div className="db-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* ─── SIDEBAR NAVIGATION ─── */}
-      <aside className="db-sidebar">
+      <aside className={`db-sidebar ${sidebarOpen ? 'db-sidebar-open' : ''}`}>
         <div className="db-sidebar-top">
-          <div className="db-brand">
-            <h1 className="db-brand-title">Library Admin</h1>
-            <p className="db-brand-subtitle">Management Portal</p>
+          <div className="db-brand-row">
+            <div className="db-brand">
+              <h1 className="db-brand-title">Library Admin</h1>
+              <p className="db-brand-subtitle">Management Portal</p>
+            </div>
+            <button 
+              className="db-sidebar-close-btn" 
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close sidebar"
+            >
+              <CloseIcon />
+            </button>
           </div>
           <nav className="db-nav" aria-label="Sidebar navigation">
-            <div className="db-nav-item db-nav-item-active">
+            <div
+              className={`db-nav-item ${activeView === 'dashboard' ? 'db-nav-item-active' : ''}`}
+              onClick={() => {
+                setActiveView('dashboard');
+                loadDashboardData(true);
+                setSidebarOpen(false);
+              }}
+            >
               <DashboardIcon className="db-nav-icon" />
               <span>Dashboard</span>
             </div>
-            <div className="db-nav-item" onClick={() => loadDashboardData()}>
+            <div
+              className={`db-nav-item ${activeView === 'books' ? 'db-nav-item-active' : ''}`}
+              onClick={() => {
+                setActiveView('books');
+                loadDashboardData(true);
+                setSidebarOpen(false);
+              }}
+            >
               <BookIcon className="db-nav-icon" />
               <span>Books</span>
             </div>
-            <div className="db-nav-item" onClick={() => loadDashboardData()}>
+            <div
+              className={`db-nav-item ${activeView === 'members' ? 'db-nav-item-active' : ''}`}
+              onClick={() => {
+                setActiveView('members');
+                loadDashboardData(true);
+                setSidebarOpen(false);
+              }}
+            >
               <MemberIcon className="db-nav-icon" />
               <span>Members</span>
             </div>
-            <div className="db-nav-item" onClick={() => loadDashboardData()}>
+            <div
+              className={`db-nav-item ${activeView === 'transactions' ? 'db-nav-item-active' : ''}`}
+              onClick={() => {
+                loadDashboardData(true);
+                setSidebarOpen(false);
+              }}
+            >
               <TransactionIcon className="db-nav-icon" />
               <span>Transactions</span>
             </div>
@@ -384,19 +507,30 @@ export default function Dashboard() {
       <main className="db-main">
         {/* HEADER PANEL */}
         <header className="db-header">
-          <h2 className="db-header-title">Admin Dashboard</h2>
+          <button 
+            className="db-hamburger-btn" 
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation menu"
+          >
+            <MenuIcon />
+          </button>
+          <h2 className="db-header-title">
+            {activeView === 'books' ? 'Book Inventory' : activeView === 'members' ? 'Member Directory' : 'Admin Dashboard'}
+          </h2>
           <div className="db-header-controls">
-            <div className="db-search-wrapper">
-              <SearchIcon className="db-search-icon" />
-              <input
-                type="text"
-                placeholder="Search catalog..."
-                className="db-search-input"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                aria-label="Search catalog input"
-              />
-            </div>
+            {activeView === 'dashboard' && (
+              <div className="db-search-wrapper">
+                <SearchIcon className="db-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search catalog..."
+                  className="db-search-input"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  aria-label="Search catalog input"
+                />
+              </div>
+            )}
             <button className="db-icon-btn" aria-label="Notifications">
               <BellIcon />
             </button>
@@ -414,193 +548,218 @@ export default function Dashboard() {
         </header>
 
         {/* ANALYTICS SCROLLABLE GRID BODY */}
-        <div className="db-body">
-          {/* STATS METRIC CARDS */}
-          <section className="db-stats-grid" aria-label="Library metrics">
-            <div className="db-stat-card">
-              <div className="db-stat-icon-container books">
-                <BookOpenIcon className="db-stat-icon" />
-              </div>
-              <div className="db-stat-info">
-                <span className="db-stat-label">Total Books</span>
-                <span className="db-stat-value">
-                  {loading ? '...' : stats.totalBooks.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="db-stat-card">
-              <div className="db-stat-icon-container members">
-                <PeopleIcon className="db-stat-icon" />
-              </div>
-              <div className="db-stat-info">
-                <span className="db-stat-label">Total Members</span>
-                <span className="db-stat-value">
-                  {loading ? '...' : stats.totalMembers.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="db-stat-card">
-              <div className="db-stat-icon-container borrowed">
-                <ExportIcon className="db-stat-icon" />
-              </div>
-              <div className="db-stat-info">
-                <span className="db-stat-label">Borrowed Books</span>
-                <span className="db-stat-value">
-                  {loading ? '...' : stats.borrowedBooks.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="db-stat-card">
-              <div className="db-stat-icon-container available">
-                <CheckCircleIcon className="db-stat-icon" />
-              </div>
-              <div className="db-stat-info">
-                <span className="db-stat-label">Available Books</span>
-                <span className="db-stat-value">
-                  {loading ? '...' : stats.availableBooks.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {/* TWO COLUMNS WRAPPER */}
-          <div className="db-grid-main">
-            {/* COLUMN 1: RECENT TRANSACTIONS TABLE */}
-            <section className="db-panel-card" aria-label="Recent transactions panel">
-              <div className="db-panel-header">
-                <h3 className="db-panel-title">Recent Transactions</h3>
-                <a href="#transactions" className="db-panel-link" onClick={() => loadDashboardData()}>
-                  View All
-                </a>
+        {activeView === 'dashboard' && (
+          <div className="db-body">
+            {/* STATS METRIC CARDS */}
+            <section className="db-stats-grid" aria-label="Library metrics">
+              <div className="db-stat-card">
+                <div className="db-stat-icon-container books">
+                  <BookOpenIcon className="db-stat-icon" />
+                </div>
+                <div className="db-stat-info">
+                  <span className="db-stat-label">Total Books</span>
+                  <span className="db-stat-value">
+                    {loading ? '...' : stats.totalBooks.toLocaleString()}
+                  </span>
+                </div>
               </div>
 
-              <div className="db-table-wrapper">
-                {loading ? (
-                  <div className="db-table-empty">Loading transaction records...</div>
-                ) : filteredTransactions.length === 0 ? (
-                  <div className="db-table-empty">No transaction logs match search parameters.</div>
-                ) : (
-                  <table className="db-table">
-                    <thead>
-                      <tr>
-                        <th>Book Title</th>
-                        <th>Member Name</th>
-                        <th>Issue Date</th>
-                        <th>Due Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredTransactions.slice(0, 6).map((tx) => {
-                        const calculatedStatus = getTransactionStatus(tx);
-                        return (
-                          <tr key={tx.id}>
-                            <td>{tx.book?.title || 'Unknown Asset'}</td>
-                            <td>{tx.member?.user?.fullName || tx.member?.memberCode || 'Unknown'}</td>
-                            <td>{formatDateString(tx.issueDate)}</td>
-                            <td>{formatDateString(tx.dueDate)}</td>
-                            <td>
-                              <span
-                                className={`badge ${
-                                  calculatedStatus === 'Returned'
-                                    ? 'returned'
-                                    : calculatedStatus === 'Overdue'
-                                    ? 'overdue'
-                                    : 'on-time'
-                                }`}
-                              >
-                                {calculatedStatus}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
+              <div className="db-stat-card">
+                <div className="db-stat-icon-container members">
+                  <PeopleIcon className="db-stat-icon" />
+                </div>
+                <div className="db-stat-info">
+                  <span className="db-stat-label">Total Members</span>
+                  <span className="db-stat-value">
+                    {loading ? '...' : stats.totalMembers.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="db-stat-card">
+                <div className="db-stat-icon-container borrowed">
+                  <ExportIcon className="db-stat-icon" />
+                </div>
+                <div className="db-stat-info">
+                  <span className="db-stat-label">Borrowed Books</span>
+                  <span className="db-stat-value">
+                    {loading ? '...' : stats.borrowedBooks.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="db-stat-card">
+                <div className="db-stat-icon-container available">
+                  <CheckCircleIcon className="db-stat-icon" />
+                </div>
+                <div className="db-stat-info">
+                  <span className="db-stat-label">Available Books</span>
+                  <span className="db-stat-value">
+                    {loading ? '...' : stats.availableBooks.toLocaleString()}
+                  </span>
+                </div>
               </div>
             </section>
 
-            {/* COLUMN 2: QUICK ACTIONS & STATUS */}
-            <div className="db-right-column">
-              <section className="db-panel-card" aria-label="Quick actions panel">
-                <h3 className="db-panel-title" style={{ marginBottom: '16px' }}>
-                  Quick Actions
-                </h3>
-                <div className="db-actions-list">
-                  <button
-                    className="db-action-btn db-action-btn-primary"
-                    onClick={() => setActiveModal('add-book')}
-                    aria-label="Add Book action"
-                  >
-                    <div className="db-btn-inner">
-                      <PlusIcon className="db-action-icon" />
-                      <span>Add Book</span>
-                    </div>
-                    <ChevronRightIcon className="db-chevron-icon" />
-                  </button>
+            {/* TWO COLUMNS WRAPPER */}
+            <div className="db-grid-main">
+              {/* COLUMN 1: RECENT TRANSACTIONS TABLE */}
+              <section className="db-panel-card" aria-label="Recent transactions panel">
+                <div className="db-panel-header">
+                  <h3 className="db-panel-title">Recent Transactions</h3>
+                  <a href="#transactions" className="db-panel-link" onClick={() => loadDashboardData()}>
+                    View All
+                  </a>
+                </div>
 
-                  <button
-                    className="db-action-btn db-action-btn-secondary"
-                    onClick={() => {
-                      setActiveModal('add-member');
-                      setMemberTab('link');
-                    }}
-                    aria-label="Add Member action"
-                  >
-                    <div className="db-btn-inner">
-                      <UserPlusIcon className="db-action-icon" />
-                      <span>Add Member</span>
-                    </div>
-                    <ChevronRightIcon className="db-chevron-icon" />
-                  </button>
-
-                  <button
-                    className="db-action-btn db-action-btn-secondary"
-                    onClick={() => setActiveModal('issue-book')}
-                    aria-label="Issue Book action"
-                  >
-                    <div className="db-btn-inner">
-                      <ExportIcon className="db-action-icon" />
-                      <span>Issue Book</span>
-                    </div>
-                    <ChevronRightIcon className="db-chevron-icon" />
-                  </button>
-
-                  <button
-                    className="db-action-btn db-action-btn-secondary"
-                    onClick={() => setActiveModal('return-book')}
-                    aria-label="Return Book action"
-                  >
-                    <div className="db-btn-inner">
-                      <ImportIcon className="db-action-icon" />
-                      <span>Return Book</span>
-                    </div>
-                    <ChevronRightIcon className="db-chevron-icon" />
-                  </button>
+                <div className="db-table-wrapper">
+                  {loading ? (
+                    <div className="db-table-empty">Loading transaction records...</div>
+                  ) : filteredTransactions.length === 0 ? (
+                    <div className="db-table-empty">No transaction logs match search parameters.</div>
+                  ) : (
+                    <table className="db-table">
+                      <thead>
+                        <tr>
+                          <th>Book Title</th>
+                          <th>Member Name</th>
+                          <th>Issue Date</th>
+                          <th>Due Date</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTransactions.slice(0, 6).map((tx) => {
+                          const calculatedStatus = getTransactionStatus(tx);
+                          return (
+                            <tr key={tx.id}>
+                              <td>{tx.book?.title || 'Unknown Asset'}</td>
+                              <td>{tx.member?.user?.fullName || tx.member?.memberCode || 'Unknown'}</td>
+                              <td>{formatDateString(tx.issueDate)}</td>
+                              <td>{formatDateString(tx.dueDate)}</td>
+                              <td>
+                                <span
+                                  className={`badge ${
+                                    calculatedStatus === 'Returned'
+                                      ? 'returned'
+                                      : calculatedStatus === 'Overdue'
+                                      ? 'overdue'
+                                      : 'on-time'
+                                  }`}
+                                >
+                                  {calculatedStatus}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </section>
 
-              {/* OPERATIONAL STATUS CARD */}
-              <section className="db-status-card" aria-label="Operational status">
-                <h4 className="db-status-title">Operational Status</h4>
-                <p className="db-status-desc">
-                  System is operational. Last catalog update was 12 minutes ago.
-                </p>
-              </section>
+              {/* COLUMN 2: QUICK ACTIONS & STATUS */}
+              <div className="db-right-column">
+                <section className="db-panel-card" aria-label="Quick actions panel">
+                  <h3 className="db-panel-title" style={{ marginBottom: '16px' }}>
+                    Quick Actions
+                  </h3>
+                  <div className="db-actions-list">
+                    <button
+                      className="db-action-btn db-action-btn-primary"
+                      onClick={() => setActiveModal('add-book')}
+                      aria-label="Add Book action"
+                    >
+                      <div className="db-btn-inner">
+                        <PlusIcon className="db-action-icon" />
+                        <span>Add Book</span>
+                      </div>
+                      <ChevronRightIcon className="db-chevron-icon" />
+                    </button>
 
-              {/* DECORATIVE ACCESS BANNER */}
-              <section className="db-promo-card" aria-label="Institutional Archive Access">
-                <div className="db-promo-bg" style={{ backgroundImage: `url(${shelfBannerImg})` }}></div>
-                <div className="db-promo-overlay"></div>
-                <h4 className="db-promo-title">Institutional Archive Access</h4>
-              </section>
+                    <button
+                      className="db-action-btn db-action-btn-secondary"
+                      onClick={() => {
+                        setActiveModal('add-member');
+                        setMemberTab('link');
+                      }}
+                      aria-label="Add Member action"
+                    >
+                      <div className="db-btn-inner">
+                        <UserPlusIcon className="db-action-icon" />
+                        <span>Add Member</span>
+                      </div>
+                      <ChevronRightIcon className="db-chevron-icon" />
+                    </button>
+
+                    <button
+                      className="db-action-btn db-action-btn-secondary"
+                      onClick={() => setActiveModal('issue-book')}
+                      aria-label="Issue Book action"
+                    >
+                      <div className="db-btn-inner">
+                        <ExportIcon className="db-action-icon" />
+                        <span>Issue Book</span>
+                      </div>
+                      <ChevronRightIcon className="db-chevron-icon" />
+                    </button>
+
+                    <button
+                      className="db-action-btn db-action-btn-secondary"
+                      onClick={() => setActiveModal('return-book')}
+                      aria-label="Return Book action"
+                    >
+                      <div className="db-btn-inner">
+                        <ImportIcon className="db-action-icon" />
+                        <span>Return Book</span>
+                      </div>
+                      <ChevronRightIcon className="db-chevron-icon" />
+                    </button>
+                  </div>
+                </section>
+
+                {/* OPERATIONAL STATUS CARD */}
+                <section className="db-status-card" aria-label="Operational status">
+                  <h4 className="db-status-title">Operational Status</h4>
+                  <p className="db-status-desc">
+                    System is operational. Last catalog update was 12 minutes ago.
+                  </p>
+                </section>
+
+                {/* DECORATIVE ACCESS BANNER */}
+                <section className="db-promo-card" aria-label="Institutional Archive Access">
+                  <div className="db-promo-bg" style={{ backgroundImage: `url(${shelfBannerImg})` }}></div>
+                  <div className="db-promo-overlay"></div>
+                  <h4 className="db-promo-title">Institutional Archive Access</h4>
+                </section>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* BOOK INVENTORY CRUD PANEL */}
+        {activeView === 'books' && (
+          <BookInventoryPanel
+            books={books}
+            loading={loading}
+            token={token}
+            onRefresh={() => loadDashboardData(true)}
+            onAddBookClick={() => setActiveModal('add-book')}
+          />
+        )}
+
+        {/* MEMBER INVENTORY CRUD PANEL */}
+        {activeView === 'members' && (
+          <MemberInventoryPanel
+            members={members}
+            users={users}
+            loading={loading}
+            token={token}
+            onRefresh={() => loadDashboardData(true)}
+            onAddMemberClick={() => setActiveModal('add-member')}
+          />
+        )}
       </main>
 
       {/* ─── MODAL DIALOGS FOR QUICK ACTIONS ─── */}
@@ -703,10 +862,10 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="db-action-btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }} onClick={closeModal} disabled={submitting}>
+                <button type="button" className="db-action-btn-secondary" onClick={closeModal} disabled={submitting}>
                   Cancel
                 </button>
-                <button type="submit" className="db-action-btn-primary" style={{ padding: '8px 16px', fontSize: '0.875rem' }} disabled={submitting}>
+                <button type="submit" className="db-action-btn-primary" disabled={submitting}>
                   {submitting ? 'Adding...' : 'Add Asset'}
                 </button>
               </div>
@@ -782,6 +941,20 @@ export default function Dashboard() {
                 ) : (
                   <>
                     <div className="form-group">
+                      <label htmlFor="modal-member-role">Account Role *</label>
+                      <select
+                        id="modal-member-role"
+                        className="form-select"
+                        value={memberForm.role || 'Member'}
+                        onChange={(e) => setMemberForm((prev) => ({ ...prev, role: e.target.value }))}
+                        disabled={submitting}
+                      >
+                        <option value="Member">Library Member</option>
+                        <option value="Admin">System Administrator</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
                       <label htmlFor="modal-member-name">Full Name *</label>
                       <input
                         id="modal-member-name"
@@ -822,18 +995,20 @@ export default function Dashboard() {
                   </>
                 )}
 
-                <div className="form-group">
-                  <label htmlFor="modal-member-code">Library Card ID / Member Code *</label>
-                  <input
-                    id="modal-member-code"
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. MEM0024"
-                    value={memberForm.memberCode}
-                    onChange={(e) => setMemberForm((prev) => ({ ...prev, memberCode: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+                {(memberTab === 'link' || (memberForm.role || 'Member') === 'Member') && (
+                  <div className="form-group">
+                    <label htmlFor="modal-member-code">Library Card ID / Member Code *</label>
+                    <input
+                      id="modal-member-code"
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. MEM0024"
+                      value={memberForm.memberCode}
+                      onChange={(e) => setMemberForm((prev) => ({ ...prev, memberCode: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="db-action-btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }} onClick={closeModal} disabled={submitting}>
@@ -1031,8 +1206,10 @@ export default function Dashboard() {
               </div>
             </form>
           </div>
-        </div>
+         </div>
       )}
+
+
     </div>
   );
 }
@@ -1199,3 +1376,15 @@ function CloseIcon() {
     </svg>
   );
 }
+
+function MenuIcon({ className }) {
+  return (
+    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+

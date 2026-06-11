@@ -29,9 +29,11 @@ namespace backend.Endpoints
                     return Results.BadRequest("Email and Password fields are mandatory.");
                 }
 
+                var sanitizedEmail = dto.Email.Trim().ToLowerInvariant();
+
                 // 1. Email Format Validation
                 var emailRegex = new System.Text.RegularExpressions.Regex(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", System.Text.RegularExpressions.RegexOptions.Compiled);
-                if (!emailRegex.IsMatch(dto.Email.Trim()))
+                if (!emailRegex.IsMatch(sanitizedEmail))
                 {
                     return Results.BadRequest("Invalid email address format.");
                 }
@@ -54,8 +56,7 @@ namespace backend.Endpoints
                     return Results.BadRequest("Password must contain at least one numeric digit.");
                 }
 
-                var trimmedEmail = dto.Email.Trim();
-                var userExists = await userRepo.FindAsync(u => u.Email == trimmedEmail);
+                var userExists = await userRepo.FindAsync(u => u.Email == sanitizedEmail);
                 if (userExists.Any())
                 {
                     return Results.BadRequest("A user record with this email address already exists.");
@@ -67,7 +68,7 @@ namespace backend.Endpoints
                 var newUser = new User
                 {
                     FullName = dto.FullName.Trim(),
-                    Email = trimmedEmail,
+                    Email = sanitizedEmail,
                     PasswordHash = secureHash, // Store the un-reversible mathematical string footprint
                     Role = dto.Role,
                     IsActive = true
@@ -96,16 +97,36 @@ namespace backend.Endpoints
             // ==========================================================
             // 🔑 POST /users/login - Verify hashed credentials securely and issue JWT
             // ==========================================================
-            group.MapPost("/login", async ([FromBody] UserLoginDto dto, IGenericRepository<User> userRepo, IConfiguration config) =>
+            group.MapPost("/login", async ([FromBody] UserLoginDto dto, 
+                IGenericRepository<User> userRepo, 
+                IGenericRepository<Member> memberRepo,
+                IConfiguration config) =>
             {
+                var sanitizedEmail = (dto.Email ?? "").Trim().ToLowerInvariant();
+
                 // Query primarily by email match first to pull matching profile entry
-                var users = await userRepo.FindAsync(u => u.Email == dto.Email);
+                var users = await userRepo.FindAsync(u => u.Email == sanitizedEmail);
                 var user = users.FirstOrDefault();
 
                 // SECURE MECHANISM: Verify clear-text login string against database hash entry
-                if (user == null || !user.IsActive || !BCryptNet.Verify(dto.Password, user.PasswordHash))
+                if (user == null || !BCryptNet.Verify(dto.Password, user.PasswordHash))
                 {
                     return Results.Json(new { error = "Invalid email identity or invalid account password credentials." }, statusCode: 401);
+                }
+
+                if (!user.IsActive)
+                {
+                    return Results.Json(new { error = "Your account has been deactivated. Please contact the administrator." }, statusCode: 403);
+                }
+
+                if (user.Role == "Member")
+                {
+                    var members = await memberRepo.FindAsync(m => m.UserId == user.Id);
+                    var member = members.FirstOrDefault();
+                    if (member != null && member.Status == "Suspended")
+                    {
+                        return Results.Json(new { error = "Your library membership is currently suspended. Please contact administration." }, statusCode: 403);
+                    }
                 }
 
                 // Generate signed JWT token

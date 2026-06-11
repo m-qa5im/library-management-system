@@ -34,6 +34,11 @@ export default function Login() {
       return 'Email address is required.';
     }
 
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      return 'Invalid email address format.';
+    }
+
     if (!formData.password.trim()) {
       return 'Password is required.';
     }

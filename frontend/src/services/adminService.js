@@ -104,6 +104,15 @@ export async function getUsers(token) {
   return handleResponse(response);
 }
 
+export async function registerUser(userPayload) {
+  const response = await fetch(`${API_BASE_URL}/users/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userPayload),
+  });
+  return handleResponse(response);
+}
+
 // Helper to register a member completely (User creation + Member linking)
 export async function registerAndCreateMember(userPayload, memberCode, token) {
   // 1. Register user
@@ -120,4 +129,38 @@ export async function registerAndCreateMember(userPayload, memberCode, token) {
     memberCode: memberCode
   };
   return createMember(memberPayload, token);
+}
+
+export async function updateBook(id, payload, token) {
+  const response = await fetch(`${API_BASE_URL}/books/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteBook(id, token) {
+  const response = await fetch(`${API_BASE_URL}/books/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
+}
+
+export async function updateMember(id, payload, token) {
+  const response = await fetch(`${API_BASE_URL}/members/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteMember(id, token) {
+  const response = await fetch(`${API_BASE_URL}/members/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(token),
+  });
+  return handleResponse(response);
 }

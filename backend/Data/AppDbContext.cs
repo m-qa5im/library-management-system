@@ -25,6 +25,10 @@ namespace backend.Data
                 .HasForeignKey<Member>(m => m.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Member>()
+                .Navigation(m => m.User)
+                .AutoInclude();
+
             // 2. Configure Many-to-One: Transactions -> Books
             modelBuilder.Entity<BookTransaction>()
                 .HasOne(t => t.Book)

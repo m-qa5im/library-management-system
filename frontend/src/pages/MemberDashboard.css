@@ -116,20 +116,20 @@
 .mdb-search-bar {
   display: flex;
   background-color: #ffffff;
-  border: 1px solid #c4c5d5;
-  border-radius: 30px;
-  padding: 4px 6px 4px 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 6px 8px 6px 24px;
   width: 580px;
   max-width: 90%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-level-1);
   margin-top: 12px;
   align-items: center;
-  transition: all 0.2s ease;
+  transition: var(--transition-default);
 }
 
 .mdb-search-bar:focus-within {
   border-color: #00288e;
-  box-shadow: 0 4px 20px rgba(0, 40, 142, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 40, 142, 0.12);
 }
 
 .mdb-search-icon {
@@ -157,16 +157,19 @@
   background-color: #00288e;
   color: #ffffff;
   border: none;
-  padding: 10px 24px;
-  border-radius: 20px;
+  padding: 10px 28px;
+  border-radius: 999px;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  box-shadow: var(--shadow-level-1);
+  transition: var(--transition-default);
 }
 
 .mdb-search-btn:hover {
   background-color: #001f70;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-level-2);
 }
 
 /* ─── CATALOG SECTION ─── */
@@ -218,18 +221,21 @@
   padding: 8px 16px;
   background-color: #ffffff;
   border: 1px solid #c4c5d5;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.875rem;
   color: #505f76;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-default);
+  box-shadow: var(--shadow-level-1);
 }
 
 .mdb-filter-btn:hover {
   border-color: #00288e;
   color: #00288e;
   background-color: #f7f9ff;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-level-2);
 }
 
 .mdb-filter-icon {
@@ -247,18 +253,18 @@
 .mdb-card {
   background-color: #ffffff;
   border: 1px solid #e2e7ff;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(19, 27, 46, 0.02);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-level-1);
+  transition: var(--transition-default);
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
 .mdb-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(19, 27, 46, 0.06);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-level-2);
 }
 
 .mdb-card-cover-wrapper {
@@ -307,25 +313,26 @@
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  gap: 6px;
+  box-shadow: var(--shadow-level-1);
   z-index: 10;
-  color: #ffffff;
 }
 
 .mdb-badge.available {
-  background-color: #15803d;
+  background-color: rgba(21, 128, 61, 0.1);
+  color: #15803d;
 }
 
 .mdb-badge.borrowed {
-  background-color: #be123c;
+  background-color: rgba(190, 18, 60, 0.1);
+  color: #be123c;
 }
 
 .mdb-badge-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: #ffffff;
+  background-color: currentColor;
 }
 
 .mdb-card-body {
@@ -373,17 +380,19 @@
 /* card action buttons */
 .mdb-btn {
   width: 100%;
-  padding: 10px 16px;
+  height: 40px;
+  padding: 0 16px;
   font-size: 0.85rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-default);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   text-decoration: none;
+  box-shadow: var(--shadow-level-1);
 }
 
 .mdb-btn-primary {
@@ -395,6 +404,8 @@
 .mdb-btn-primary:hover:not(:disabled) {
   background-color: #001f70;
   border-color: #001f70;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-level-2);
 }
 
 .mdb-btn-secondary {
@@ -405,6 +416,8 @@
 
 .mdb-btn-secondary:hover:not(:disabled) {
   background-color: #eaedff;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-level-2);
 }
 
 .mdb-btn:disabled {
@@ -537,12 +550,12 @@
   right: 0;
   bottom: 0;
   background-color: rgba(19, 27, 46, 0.55);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.25s ease;
+  animation: fadeIn 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes fadeIn {
@@ -578,9 +591,9 @@
   border-radius: 16px;
   width: 760px;
   max-width: 95%;
-  box-shadow: 0 24px 38px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-level-3);
   overflow: hidden;
-  animation: slideUp 0.25s ease;
+  animation: fadeInUp 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -604,7 +617,7 @@
 .mdb-detail-modal-cover-wrapper {
   aspect-ratio: 3/4;
   width: 100%;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   border: 1px solid #e2e7ff;
@@ -675,7 +688,7 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   background-color: #f7f9ff;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
   border: 1px solid #e2e7ff;
 }
@@ -687,11 +700,12 @@
 }
 
 .mdb-detail-info-label {
-  font-size: 0.725rem;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   color: #757684;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1.2;
 }
 
 .mdb-detail-info-value {
@@ -704,9 +718,9 @@
 .mdb-loans-table-card {
   background-color: #ffffff;
   border: 1px solid #e2e7ff;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 2px 4px rgba(19, 27, 46, 0.02);
+  box-shadow: var(--shadow-level-1);
 }
 
 .mdb-loans-header {
