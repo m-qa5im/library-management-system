@@ -1,17 +1,32 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 import ProtectedRoute from './components/ProtectedRoute';
 
-import LandingPage from './pages/LandingPage';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-
-import MemberDashboard from './pages/MemberDashboard';
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const MemberDashboard = lazy(() => import('./pages/MemberDashboard'));
 
 function App() {
   return (
-    <Routes>
+    <Suspense
+      fallback={
+        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'Inter, sans-serif', color: '#1e40af', backgroundColor: '#f8fafc' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '40px', height: '40px', border: '4px solid #dde1ff', borderTopColor: '#1e40af', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+            <style>{`
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+            <span style={{ fontWeight: 500, fontSize: '0.95rem' }}>Loading portal assets...</span>
+          </div>
+        </div>
+      }
+    >
+      <Routes>
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
@@ -39,6 +54,7 @@ function App() {
       {/* Fallback */}
       <Route path="*" element={<LandingPage />} />
     </Routes>
+    </Suspense>
   );
 }
 

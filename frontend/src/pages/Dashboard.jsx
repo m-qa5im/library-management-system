@@ -87,26 +87,20 @@ export default function Dashboard() {
     selectedTransactionId: '', // Select active transaction record directly
   });
 
-  // ─── LOAD DATA FUNCTION ───
-  const loadDashboardData = async (silent = false) => {
+  // ─── LOAD DATA FUNCTIONS ───
+  const loadDashboardStatsAndTransactions = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
       setError('');
       if (!token) return;
 
-      const [statsData, txData, booksData, membersData, usersData] = await Promise.all([
+      const [statsData, txData] = await Promise.all([
         getDashboardStats(token),
         getTransactions(token),
-        getBooks(token),
-        getMembers(token),
-        getUsers(token),
       ]);
 
       setStats(statsData);
       setTransactions(txData);
-      setBooks(booksData);
-      setMembers(membersData);
-      setUsers(usersData);
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to load system dashboard analytics.');
@@ -115,9 +109,57 @@ export default function Dashboard() {
     }
   };
 
+  const loadBooksData = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      setError('');
+      if (!token) return;
+
+      const booksData = await getBooks(token);
+      setBooks(booksData);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to load library book inventory.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const loadMembersAndUsersData = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      setError('');
+      if (!token) return;
+
+      const [membersData, usersData] = await Promise.all([
+        getMembers(token),
+        getUsers(token),
+      ]);
+
+      setMembers(membersData);
+      setUsers(usersData);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to load member/user profiles.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadDashboardData();
-  }, [token]);
+    if (!token) return;
+
+    if (activeView === 'dashboard') {
+      const isCached = stats.totalBooks > 0 || transactions.length > 0;
+      loadDashboardStatsAndTransactions(isCached);
+    } else if (activeView === 'books') {
+      const isCached = books.length > 0;
+      loadBooksData(isCached);
+    } else if (activeView === 'members') {
+      const isCached = members.length > 0 || users.length > 0;
+      loadMembersAndUsersData(isCached);
+    }
+  }, [activeView, token]);
 
   // ─── LOGOUT HANDLER ───
   const handleLogout = () => {
@@ -203,7 +245,8 @@ export default function Dashboard() {
       setModalSuccess('Book asset added successfully to inventory!');
       setTimeout(() => {
         closeModal();
-        loadDashboardData(true);
+        loadBooksData(true);
+        loadDashboardStatsAndTransactions(true);
       }, 1000);
     } catch (err) {
       setModalError(err.message || 'Failed to add book asset.');
@@ -240,7 +283,8 @@ export default function Dashboard() {
         setModalSuccess('Member profile established successfully.');
         setTimeout(() => {
           closeModal();
-          loadDashboardData(true);
+          loadMembersAndUsersData(true);
+          loadDashboardStatsAndTransactions(true);
         }, 1000);
       } catch (err) {
         setModalError(err.message || 'Failed to establish member profile.');
@@ -314,7 +358,8 @@ export default function Dashboard() {
 
         setTimeout(() => {
           closeModal();
-          loadDashboardData(true);
+          loadMembersAndUsersData(true);
+          loadDashboardStatsAndTransactions(true);
         }, 1000);
       } catch (err) {
         setModalError(err.message || 'Failed to register account.');
@@ -344,7 +389,9 @@ export default function Dashboard() {
       setModalSuccess('Book asset issued successfully!');
       setTimeout(() => {
         closeModal();
-        loadDashboardData(true);
+        loadDashboardStatsAndTransactions(true);
+        loadBooksData(true);
+        loadMembersAndUsersData(true);
       }, 1000);
     } catch (err) {
       setModalError(err.message || 'Failed to loan selected asset.');
@@ -379,7 +426,9 @@ export default function Dashboard() {
       setModalSuccess('Circulation register updated. Asset returned successfully!');
       setTimeout(() => {
         closeModal();
-        loadDashboardData(true);
+        loadDashboardStatsAndTransactions(true);
+        loadBooksData(true);
+        loadMembersAndUsersData(true);
       }, 1000);
     } catch (err) {
       setModalError(err.message || 'Failed to complete book return transaction.');
@@ -454,7 +503,7 @@ export default function Dashboard() {
               className={`db-nav-item ${activeView === 'dashboard' ? 'db-nav-item-active' : ''}`}
               onClick={() => {
                 setActiveView('dashboard');
-                loadDashboardData(true);
+                loadDashboardStatsAndTransactions(true);
                 setSidebarOpen(false);
               }}
             >
@@ -465,7 +514,7 @@ export default function Dashboard() {
               className={`db-nav-item ${activeView === 'books' ? 'db-nav-item-active' : ''}`}
               onClick={() => {
                 setActiveView('books');
-                loadDashboardData(true);
+                loadBooksData(true);
                 setSidebarOpen(false);
               }}
             >
@@ -476,7 +525,7 @@ export default function Dashboard() {
               className={`db-nav-item ${activeView === 'members' ? 'db-nav-item-active' : ''}`}
               onClick={() => {
                 setActiveView('members');
-                loadDashboardData(true);
+                loadMembersAndUsersData(true);
                 setSidebarOpen(false);
               }}
             >
@@ -486,7 +535,7 @@ export default function Dashboard() {
             <div
               className={`db-nav-item ${activeView === 'transactions' ? 'db-nav-item-active' : ''}`}
               onClick={() => {
-                loadDashboardData(true);
+                loadDashboardStatsAndTransactions(true);
                 setSidebarOpen(false);
               }}
             >
@@ -607,7 +656,7 @@ export default function Dashboard() {
               <section className="db-panel-card" aria-label="Recent transactions panel">
                 <div className="db-panel-header">
                   <h3 className="db-panel-title">Recent Transactions</h3>
-                  <a href="#transactions" className="db-panel-link" onClick={() => loadDashboardData()}>
+                  <a href="#transactions" className="db-panel-link" onClick={() => loadDashboardStatsAndTransactions()}>
                     View All
                   </a>
                 </div>
@@ -744,7 +793,7 @@ export default function Dashboard() {
             books={books}
             loading={loading}
             token={token}
-            onRefresh={() => loadDashboardData(true)}
+            onRefresh={() => { loadBooksData(true); loadDashboardStatsAndTransactions(true); }}
             onAddBookClick={() => setActiveModal('add-book')}
           />
         )}
@@ -756,7 +805,7 @@ export default function Dashboard() {
             users={users}
             loading={loading}
             token={token}
-            onRefresh={() => loadDashboardData(true)}
+            onRefresh={() => { loadMembersAndUsersData(true); loadDashboardStatsAndTransactions(true); }}
             onAddMemberClick={() => setActiveModal('add-member')}
           />
         )}
