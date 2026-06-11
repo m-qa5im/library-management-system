@@ -1,0 +1,226 @@
+/* ─────────────────────────────────────────────────────────────
+   CirculationQueuePanel.css
+   Scoped under .crq-* namespace — corporate design system palette
+   ───────────────────────────────────────────────────────────── */
+
+/* ── EMPTY STATE ── */
+.crq-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 24px;
+  text-align: center;
+  color: #757684;
+}
+
+.crq-empty-icon {
+  width: 48px;
+  height: 48px;
+  color: #c4c5d5;
+}
+
+.crq-empty-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #505f76;
+  margin: 0;
+}
+
+.crq-empty-desc {
+  font-size: 0.875rem;
+  margin: 0;
+  max-width: 360px;
+  line-height: 1.5;
+}
+
+/* ── STATUS PILL: PENDING ── */
+.crq-status-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background-color: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+  white-space: nowrap;
+}
+
+.crq-status-pending .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+/* ── APPROVE BUTTON ── */
+.crq-btn-approve {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: #16a34a;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.crq-btn-approve:hover:not(:disabled) {
+  background-color: #15803d;
+  transform: translateY(-1px);
+}
+
+.crq-btn-approve:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── REJECT BUTTON ── */
+.crq-btn-reject {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background-color: transparent;
+  color: #ba1a1a;
+  border: 1.5px solid #ba1a1a;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.crq-btn-reject:hover:not(:disabled) {
+  background-color: rgba(186, 26, 26, 0.08);
+  transform: translateY(-1px);
+}
+
+.crq-btn-reject:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── ACTION CELL ── */
+.crq-actions-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* ── TABLE ROW HOVER TINT ── */
+.crq-row-approve:hover {
+  background-color: rgba(21, 128, 61, 0.04);
+}
+
+/* ── PAGINATION SUMMARY ── */
+.crq-pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e7ff;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.crq-pagination-summary {
+  font-size: 0.82rem;
+  color: #757684;
+}
+
+/* ── LOADING SPINNER ── */
+.crq-spinner-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 24px;
+  color: #505f76;
+  font-size: 0.9rem;
+}
+
+/* ── MEMBER CODE BADGE ── */
+.crq-member-code {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #00288e;
+  background-color: rgba(0, 40, 142, 0.07);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── BOOK TITLE CELL ── */
+.crq-book-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.crq-book-title {
+  font-weight: 600;
+  color: #131b2e;
+}
+
+.crq-book-isbn {
+  font-size: 0.75rem;
+  color: #757684;
+}
+
+/* ── TIMESTAMP ── */
+.crq-timestamp {
+  font-size: 0.82rem;
+  color: #505f76;
+  white-space: nowrap;
+}
+
+/* ── QUANTITY PILL ── */
+.crq-qty-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.crq-qty-pill.available {
+  background-color: rgba(21, 128, 61, 0.1);
+  color: #15803d;
+}
+
+.crq-qty-pill.low {
+  background-color: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .crq-actions-cell {
+    justify-content: flex-start;
+  }
+
+  .crq-btn-approve,
+  .crq-btn-reject {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+  }
+}

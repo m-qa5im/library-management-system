@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { fetchCatalogBooks, fetchMyLoans, borrowBook } from '../services/memberService';
+import { useToast } from '../context/ToastContext';
+import { fetchCatalogBooks, fetchMyLoans, requestBorrow } from '../services/memberService';
 import './MemberDashboard.css';
 
 export default function MemberDashboard() {
   const navigate = useNavigate();
   const { authUser, logout } = useAuth();
+  const toast = useToast();
   const token = authUser?.token;
   const memberId = authUser?.memberId;
 
@@ -38,7 +40,8 @@ export default function MemberDashboard() {
   const [selectedBook, setSelectedBook] = useState(null);
 
   // ─── CIRCULATION LOADING STATES ───
-  const [borrowingId, setBorrowingId] = useState(null);
+  const [requestingId, setRequestingId] = useState(null); // book id currently being submitted
+  const [pendingBookIds, setPendingBookIds] = useState(new Set()); // session-level pending set
   const [successMessage, setSuccessMessage] = useState('');
 
   // ─── LOAD DATA FUNCTION ───
@@ -73,24 +76,27 @@ export default function MemberDashboard() {
     setFilterQuery(searchQuery.trim());
   };
 
-  // ─── BORROW BOOK TRANSACTION ───
-  const handleBorrow = async (bookId) => {
+  // ─── REQUEST BORROW HANDLER ───
+  const handleRequestBorrow = async (bookId) => {
     try {
-      setBorrowingId(bookId);
+      setRequestingId(bookId);
       setError('');
-      await borrowBook(bookId, token);
-      
-      setSuccessMessage('Book borrowed successfully! Track it in "My Borrowed Books".');
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(''), 4000);
-
-      // Reload lists
-      await loadData();
+      await requestBorrow(bookId, token);
+      // Transition button to amber "Awaiting Admin Approval" badge
+      setPendingBookIds(prev => new Set([...prev, bookId]));
+      toast.success('Request submitted! An admin will review and approve your request shortly.');
     } catch (err) {
-      setError(err.message || 'Borrowing request was rejected.');
+      const isConflict = err.message?.toLowerCase().includes('out of stock') || err.message?.toLowerCase().includes('unavailable');
+      if (isConflict) {
+        toast.error('This item was just claimed by another reader');
+        setBooks(prevBooks => 
+          prevBooks.map(b => b.id === bookId ? { ...b, availableQuantity: 0 } : b)
+        );
+      } else {
+        toast.error(err.message || 'Failed to submit borrow request.');
+      }
     } finally {
-      setBorrowingId(null);
+      setRequestingId(null);
     }
   };
 
@@ -341,17 +347,32 @@ export default function MemberDashboard() {
             ) : (
               <div className="mdb-grid">
                 {paginatedBooks.map((book) => {
-                  const isAvailable = book.availabilityStatus === 'Available';
+                  const total = book.totalQuantity ?? 1;
+                  const avail = book.availableQuantity ?? (book.availabilityStatus === 'Available' ? 1 : 0);
+                  const isOutOfStock = avail <= 0;
+                  const isLowStock = avail > 0 && avail < total;
+                  const isPending = pendingBookIds.has(book.id);
+                  const isRequesting = requestingId === book.id;
+
+                  // Determine badge variant
+                  let badgeClass = 'available';
+                  let badgeText = `${avail} of ${total} ${total === 1 ? 'Copy' : 'Copies'} Available`;
+                  if (isOutOfStock) { 
+                    badgeClass = 'borrowed'; 
+                    badgeText = total === 1 ? 'Currently Borrowed' : 'Out of Stock'; 
+                  }
+                  else if (isLowStock) { badgeClass = 'low-stock'; }
+
                   return (
                     <article key={book.id} className="mdb-card">
                       {/* Cover Image Wrapper */}
                       <div className="mdb-card-cover-wrapper">
                         {/* Status absolute pill */}
-                        <span className={`mdb-badge ${isAvailable ? 'available' : 'borrowed'}`}>
+                        <span className={`mdb-badge ${badgeClass}`}>
                           <span className="mdb-badge-dot" />
-                          <span>{book.availabilityStatus}</span>
+                          <span>{badgeText}</span>
                         </span>
-                        
+
                         <ImageWithFallback
                           src={getCoverImageUrl(book)}
                           alt={book.title}
@@ -371,15 +392,50 @@ export default function MemberDashboard() {
                         </div>
 
                         <div className="mdb-card-actions">
-                          {isAvailable ? (
+                          {isPending ? (
+                            // Amber awaiting-approval badge — non-interactive
+                            <>
+                              <div className="mdb-btn mdb-btn-pending" aria-live="polite">
+                                <HourglassIcon />
+                                Awaiting Admin Approval
+                              </div>
+                              <button
+                                className="mdb-btn mdb-btn-secondary"
+                                onClick={() => setSelectedBook(book)}
+                                aria-label={`View details of ${book.title}`}
+                              >
+                                View Details
+                              </button>
+                            </>
+                          ) : isOutOfStock ? (
+                            // Disabled out-of-stock state
+                            <>
+                              <button
+                                className="mdb-btn mdb-btn-out-of-stock"
+                                disabled
+                                aria-label={total === 1 ? "Currently Borrowed" : "Out of Stock"}
+                              >
+                                {total === 1 ? 'Currently Borrowed' : 'Out of Stock'}
+                              </button>
+                              <button
+                                className="mdb-btn mdb-btn-secondary"
+                                onClick={() => setSelectedBook(book)}
+                                style={{ width: '100%' }}
+                                aria-label={`View details of ${book.title}`}
+                              >
+                                View Details
+                              </button>
+                            </>
+                          ) : (
+                            // Available — show Request Borrow + View Details
                             <>
                               <button
                                 className="mdb-btn mdb-btn-primary"
-                                onClick={() => handleBorrow(book.id)}
-                                disabled={borrowingId !== null}
-                                aria-label={`Borrow ${book.title}`}
+                                onClick={() => handleRequestBorrow(book.id)}
+                                disabled={isRequesting}
+                                aria-label={`Request to borrow ${book.title}`}
                               >
-                                {borrowingId === book.id ? 'Borrowing...' : 'Borrow'}
+                                {isRequesting ? 'Submitting...' : 'Request Borrow'}
                               </button>
                               <button
                                 className="mdb-btn mdb-btn-secondary"
@@ -389,15 +445,6 @@ export default function MemberDashboard() {
                                 View Details
                               </button>
                             </>
-                          ) : (
-                            <button
-                              className="mdb-btn mdb-btn-secondary"
-                              onClick={() => setSelectedBook(book)}
-                              style={{ width: '100%' }}
-                              aria-label={`View details of ${book.title}`}
-                            >
-                              View Details
-                            </button>
                           )}
                         </div>
                       </div>
@@ -506,77 +553,103 @@ export default function MemberDashboard() {
       </main>
 
       {/* ─── DYNAMIC DETAIL MODAL PREVIEW OVERLAY ─── */}
-      {selectedBook && (
-        <div className="modal-backdrop" onClick={() => setSelectedBook(null)}>
-          <div className="mdb-detail-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header" style={{ padding: '16px 24px', borderBottom: 'none' }}>
-              <button
-                className="modal-close-btn"
-                onClick={() => setSelectedBook(null)}
-                style={{ marginLeft: 'auto' }}
-                aria-label="Close modal"
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            
-            <div className="mdb-detail-modal-body">
-              {/* Left Column: Image Cover */}
-              <div className="mdb-detail-modal-left">
-                <div className="mdb-detail-modal-cover-wrapper">
-                  <ImageWithFallback
-                    src={getCoverImageUrl(selectedBook)}
-                    alt={selectedBook.title}
-                    className="mdb-detail-modal-cover"
-                  />
-                </div>
+      {selectedBook && (() => {
+        const total = selectedBook.totalQuantity ?? 1;
+        const avail = selectedBook.availableQuantity ?? (selectedBook.availabilityStatus === 'Available' ? 1 : 0);
+        const isOutOfStock = avail <= 0;
+        const isPending = pendingBookIds.has(selectedBook.id);
+        const isRequesting = requestingId === selectedBook.id;
+
+        return (
+          <div className="modal-backdrop" onClick={() => setSelectedBook(null)}>
+            <div className="mdb-detail-modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header" style={{ padding: '16px 24px', borderBottom: 'none' }}>
+                <button
+                  className="modal-close-btn"
+                  onClick={() => setSelectedBook(null)}
+                  style={{ marginLeft: 'auto' }}
+                  aria-label="Close modal"
+                >
+                  <CloseIcon />
+                </button>
               </div>
-
-              {/* Right Column: Metadata Details */}
-              <div className="mdb-detail-modal-right">
-                <div className="mdb-detail-modal-header">
-                  <span className="mdb-detail-meta-pill">{selectedBook.category}</span>
-                  <h3 className="mdb-detail-modal-title">{selectedBook.title}</h3>
-                  <p className="mdb-detail-modal-author">by {selectedBook.author}</p>
-                </div>
-
-                <div>
-                  <h4 className="mdb-detail-synopsis-title">Synopsis</h4>
-                  <p className="mdb-detail-synopsis-desc">
-                    {selectedBook.description || 'No descriptive overview is currently available for this catalog asset.'}
-                  </p>
-                </div>
-
-                <div className="mdb-detail-info-grid">
-                  <div className="mdb-detail-info-item">
-                    <span className="mdb-detail-info-label">ISBN Reference</span>
-                    <span className="mdb-detail-info-value">{selectedBook.isbn || 'N/A'}</span>
-                  </div>
-                  <div className="mdb-detail-info-item">
-                    <span className="mdb-detail-info-label">Availability</span>
-                    <span className="mdb-detail-info-value">{selectedBook.availabilityStatus}</span>
+              
+              <div className="mdb-detail-modal-body">
+                {/* Left Column: Image Cover */}
+                <div className="mdb-detail-modal-left">
+                  <div className="mdb-detail-modal-cover-wrapper">
+                    <ImageWithFallback
+                      src={getCoverImageUrl(selectedBook)}
+                      alt={selectedBook.title}
+                      className="mdb-detail-modal-cover"
+                    />
                   </div>
                 </div>
 
-                {selectedBook.availabilityStatus === 'Available' && (
-                  <button
-                    className="mdb-btn mdb-btn-primary"
-                    style={{ marginTop: '8px' }}
-                    onClick={() => {
-                      handleBorrow(selectedBook.id);
-                      setSelectedBook(null);
-                    }}
-                    disabled={borrowingId !== null}
-                    aria-label={`Borrow ${selectedBook.title}`}
-                  >
-                    {borrowingId === selectedBook.id ? 'Borrowing...' : 'Borrow Book'}
-                  </button>
-                )}
+                {/* Right Column: Metadata Details */}
+                <div className="mdb-detail-modal-right">
+                  <div className="mdb-detail-modal-header">
+                    <span className="mdb-detail-meta-pill">{selectedBook.category}</span>
+                    <h3 className="mdb-detail-modal-title">{selectedBook.title}</h3>
+                    <p className="mdb-detail-modal-author">by {selectedBook.author}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="mdb-detail-synopsis-title">Synopsis</h4>
+                    <p className="mdb-detail-synopsis-desc">
+                      {selectedBook.description || 'No descriptive overview is currently available for this catalog asset.'}
+                    </p>
+                  </div>
+
+                  <div className="mdb-detail-info-grid">
+                    <div className="mdb-detail-info-item">
+                      <span className="mdb-detail-info-label">ISBN Reference</span>
+                      <span className="mdb-detail-info-value">{selectedBook.isbn || 'N/A'}</span>
+                    </div>
+                    <div className="mdb-detail-info-item">
+                      <span className="mdb-detail-info-label">Availability</span>
+                      <span className="mdb-detail-info-value">
+                        {avail} of {total} available
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '8px' }}>
+                    {isPending ? (
+                      <div className="mdb-btn mdb-btn-pending" style={{ width: '100%' }} aria-live="polite">
+                        <HourglassIcon />
+                        Awaiting Admin Approval
+                      </div>
+                    ) : isOutOfStock ? (
+                      <button
+                        className="mdb-btn mdb-btn-out-of-stock"
+                        style={{ width: '100%' }}
+                        disabled
+                        aria-label={total === 1 ? "Currently Borrowed" : "Out of Stock"}
+                      >
+                        {total === 1 ? 'Currently Borrowed' : 'Out of Stock'}
+                      </button>
+                    ) : (
+                      <button
+                        className="mdb-btn mdb-btn-primary"
+                        style={{ width: '100%' }}
+                        onClick={() => {
+                          handleRequestBorrow(selectedBook.id);
+                          setSelectedBook(null);
+                        }}
+                        disabled={isRequesting}
+                        aria-label={`Request to borrow ${selectedBook.title}`}
+                      >
+                        {isRequesting ? 'Submitting...' : 'Request Borrow'}
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ─── FOOTER NAVIGATION PANEL ─── */}
       <footer className="mdb-footer">
@@ -670,6 +743,17 @@ function EmptyIcon({ className }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  );
+}
+
+function HourglassIcon({ className, style }) {
+  return (
+    <svg className={className} style={style} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 2h14" />
+      <path d="M5 22h14" />
+      <path d="M19 2v4c0 3.3-2.7 6-6 6h-2c-3.3 0-6-2.7-6-6V2" />
+      <path d="M5 22v-4c0-3.3 2.7-6 6-6h2c3.3 0 6 2.7 6 6v4" />
     </svg>
   );
 }

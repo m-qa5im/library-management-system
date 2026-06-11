@@ -33,6 +33,12 @@ namespace backend.Models
         [Column("availability_status")]
         public string AvailabilityStatus { get; set; } = "Available";
 
+        [Column("total_quantity")]
+        public int TotalQuantity { get; set; } = 1;
+
+        [Column("available_quantity")]
+        public int AvailableQuantity { get; set; } = 1;
+
         [Column("is_active")]
         public bool IsActive { get; set; } = true;
 

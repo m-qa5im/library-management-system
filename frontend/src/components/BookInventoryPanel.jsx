@@ -1,7 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { updateBook, deleteBook } from '../services/adminService';
+import { useToast } from '../context/ToastContext';
 
 export default function BookInventoryPanel({ books, loading, token, onRefresh, onAddBookClick }) {
+  const toast = useToast();
+
   // ─── BOOK INVENTORY CRUD STATE ───
   const [bookSearchQuery, setBookSearchQuery] = useState('');
   const [bookCurrentPage, setBookCurrentPage] = useState(1);
@@ -21,8 +24,6 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [modalError, setModalError] = useState('');
-  const [modalSuccess, setModalSuccess] = useState('');
 
   // Helper to upgrade image resolutions and fallback to Large Open Library Covers
   const getCoverImageUrl = (book) => {
@@ -136,27 +137,26 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
       isbn: book.isbn || '',
       coverImageUrl: book.coverImageUrl || '',
       availabilityStatus: book.availabilityStatus || 'Available',
+      totalQuantity: book.totalQuantity ?? 1,
+      availableQuantity: book.availableQuantity ?? 1,
     });
   };
 
   const handleEditBookSubmit = async (e) => {
     e.preventDefault();
     if (!editForm.title.trim() || !editForm.author.trim()) {
-      setModalError('Title and Author fields are strictly mandatory.');
+      toast.error('Title and Author fields are strictly mandatory.');
       return;
     }
     try {
       setSubmitting(true);
-      setModalError('');
       await updateBook(editingBook.id, editForm, token);
-      setModalSuccess('Book asset modified successfully!');
-      setTimeout(() => {
-        closeModal();
-        setEditingBook(null);
-        if (onRefresh) onRefresh();
-      }, 1000);
+      toast.success('Book asset modified successfully!');
+      closeModal();
+      setEditingBook(null);
+      if (onRefresh) onRefresh();
     } catch (err) {
-      setModalError(err.message || 'Failed to modify book asset.');
+      toast.error(err.message || 'Failed to modify book asset.');
     } finally {
       setSubmitting(false);
     }
@@ -165,31 +165,61 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
   const handleDeleteBook = async (id) => {
     try {
       setSubmitting(true);
-      setModalError('');
       await deleteBook(id, token);
-      setModalSuccess('Book asset deleted successfully from inventory!');
-      setTimeout(() => {
-        setDeletingBook(null);
-        setModalSuccess('');
-        if (onRefresh) onRefresh();
-      }, 1000);
+      toast.success('Book asset deleted successfully from inventory!');
+      setDeletingBook(null);
+      closeModal();
+      if (onRefresh) onRefresh();
     } catch (err) {
-      setModalError(err.message || 'Failed to delete book asset.');
+      toast.error(err.message || 'Failed to delete book asset.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ─── CSV EXPORT ───
+  const handleExportCSV = () => {
+    if (filteredBooks.length === 0) return;
+
+    const headers = ['Book ID', 'Title', 'Author', 'Category', 'Total Quantity', 'Available Quantity', 'Status'];
+    const rows = filteredBooks.map((book) => {
+      const avail = book.availableQuantity ?? (book.availabilityStatus === 'Available' ? 1 : 0);
+      const isAvailable = avail > 0;
+      return [
+        `BK-${book.id.toString().padStart(4, '0')}`,
+        book.title || '',
+        book.author || '',
+        book.category || '',
+        (book.totalQuantity ?? 1).toString(),
+        avail.toString(),
+        isAvailable ? 'Available' : 'Out of Stock',
+      ];
+    });
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' +
+      [
+        headers.join(','),
+        ...rows.map((row) => row.map((val) => `"${val.replace(/"/g, '""')}"`).join(',')),
+      ].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `library_books_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const closeModal = () => {
-    setModalError('');
-    setModalSuccess('');
     setSubmitting(false);
   };
 
   return (
     <div className="db-body">
       {/* Search and Add Book action row */}
-      <div className="db-action-row-container">
+      <div className="db-action-row-container" style={{ flexWrap: 'wrap', gap: '12px' }}>
         <div className="db-search-wrapper" style={{ margin: 0, width: '400px', maxWidth: '100%' }}>
           <SearchIcon className="db-search-icon" />
           <input
@@ -204,14 +234,29 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
             aria-label="Search by title or author"
           />
         </div>
-        <button
-          className="db-add-book-btn"
-          onClick={onAddBookClick}
-          aria-label="Add Book"
-        >
-          <PlusIcon style={{ width: '16px', height: '16px' }} />
-          <span>Add Book</span>
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Export CSV */}
+          <button
+            className="db-add-book-btn"
+            style={{ backgroundColor: '#ffffff', color: '#00288e', border: '1px solid #00288e' }}
+            onClick={handleExportCSV}
+            disabled={filteredBooks.length === 0}
+            title="Export to CSV"
+            aria-label="Export books as CSV"
+          >
+            <ExportIcon style={{ width: '16px', height: '16px', stroke: '#00288e' }} />
+            <span>Export CSV</span>
+          </button>
+
+          <button
+            className="db-add-book-btn"
+            onClick={onAddBookClick}
+            aria-label="Add Book"
+          >
+            <PlusIcon style={{ width: '16px', height: '16px' }} />
+            <span>Add Book</span>
+          </button>
+        </div>
       </div>
 
       {/* CRUD Table card */}
@@ -229,13 +274,17 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
                   <th>Title</th>
                   <th>Author</th>
                   <th>Category</th>
-                  <th>Availability Status</th>
+                  <th style={{ textAlign: 'center' }}>Total Qty</th>
+                  <th style={{ textAlign: 'center' }}>Available Qty</th>
+                  <th>Status</th>
                   <th style={{ textAlign: 'right', paddingRight: '24px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedBooks.map((book) => {
-                  const isAvailable = book.availabilityStatus === 'Available';
+                  const total = book.totalQuantity ?? 1;
+                  const avail = book.availableQuantity ?? (book.availabilityStatus === 'Available' ? 1 : 0);
+                  const isAvailable = avail > 0;
                   const bookCode = `#BK-${book.id.toString().padStart(4, '0')}`;
                   
                   let bookSubtitle = 'Classic Literature';
@@ -279,10 +328,12 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
                           {book.category}
                         </span>
                       </td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{total}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{avail}</td>
                       <td>
                         <span className={`db-status-dot-badge ${isAvailable ? 'available' : 'borrowed'}`}>
                           <span className="dot" />
-                          <span>{isAvailable ? 'Available' : 'Borrowed'}</span>
+                          <span>{isAvailable ? 'Available' : 'Out of Stock'}</span>
                         </span>
                       </td>
                       <td>
@@ -420,7 +471,17 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
                     </div>
                     <div>
                       <span className="text-label-md" style={{ display: 'block', color: '#757684' }}>Availability Status</span>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#131b2e', marginTop: '4px', display: 'block' }}>{selectedBookPreview.availabilityStatus}</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#131b2e', marginTop: '4px', display: 'block' }}>
+                        {selectedBookPreview.availabilityStatus} ({(selectedBookPreview.availableQuantity ?? 0)} of {(selectedBookPreview.totalQuantity ?? 1)} available)
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-label-md" style={{ display: 'block', color: '#757684' }}>Total Quantity</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#131b2e', marginTop: '4px', display: 'block' }}>{selectedBookPreview.totalQuantity ?? 1}</span>
+                    </div>
+                    <div>
+                      <span className="text-label-md" style={{ display: 'block', color: '#757684' }}>Available Quantity</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#131b2e', marginTop: '4px', display: 'block' }}>{selectedBookPreview.availableQuantity ?? 1}</span>
                     </div>
                   </div>
                 </div>
@@ -447,9 +508,6 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
             </div>
             <form onSubmit={handleEditBookSubmit}>
               <div className="modal-body">
-                {modalError && <div className="form-alert">{modalError}</div>}
-                {modalSuccess && <div className="form-success">{modalSuccess}</div>}
-
                 <div className="form-group">
                   <label htmlFor="modal-edit-title">Book Title *</label>
                   <input
@@ -516,13 +574,64 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
                   />
                 </div>
 
+                <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label htmlFor="modal-edit-total-qty">Total Quantity *</label>
+                    <input
+                      id="modal-edit-total-qty"
+                      type="number"
+                      min="1"
+                      className="form-input"
+                      value={editForm.totalQuantity ?? 1}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10) || 1;
+                        setEditForm((prev) => ({ 
+                          ...prev, 
+                          totalQuantity: val,
+                          availableQuantity: Math.min(prev.availableQuantity ?? 1, val)
+                        }));
+                      }}
+                      disabled={submitting}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-edit-avail-qty">Available Quantity *</label>
+                    <input
+                      id="modal-edit-avail-qty"
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      value={editForm.availableQuantity ?? 1}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10) || 0;
+                        setEditForm((prev) => ({ 
+                          ...prev, 
+                          availableQuantity: Math.min(val, prev.totalQuantity ?? 1)
+                        }));
+                      }}
+                      disabled={submitting}
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="form-group">
                   <label htmlFor="modal-edit-status">Availability Status</label>
                   <select
                     id="modal-edit-status"
                     className="form-select"
                     value={editForm.availabilityStatus}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, availabilityStatus: e.target.value }))}
+                    onChange={(e) => setEditForm((prev) => {
+                      const status = e.target.value;
+                      let avail = prev.availableQuantity;
+                      if (status === 'Available' && avail === 0) {
+                        avail = 1;
+                      } else if (status === 'Issued') {
+                        avail = 0;
+                      }
+                      return { ...prev, availabilityStatus: status, availableQuantity: avail };
+                    })}
                     disabled={submitting}
                   >
                     <option value="Available">Available</option>
@@ -565,8 +674,6 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
               </button>
             </div>
             <div className="modal-body">
-              {modalError && <div className="form-alert">{modalError}</div>}
-              {modalSuccess && <div className="form-success">{modalSuccess}</div>}
               <p style={{ margin: 0, fontSize: '0.9rem', color: '#505f76', lineHeight: 1.5 }}>
                 Are you absolutely sure you want to permanently purge <strong>&quot;{deletingBook.title}&quot;</strong> from the library book inventory?
               </p>
@@ -672,5 +779,13 @@ function TableImageWithFallback({ src, alt }) {
       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       onError={() => setError(true)}
     />
+  );
+}
+
+function ExportIcon({ className, style }) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12h16M14 6l6 6-6 6" />
+    </svg>
   );
 }

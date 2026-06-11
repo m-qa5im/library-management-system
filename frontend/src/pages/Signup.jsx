@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../services/authService';
+import { useToast } from '../context/ToastContext';
 import './AuthPage.css';
 
 export default function Signup() {
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -15,8 +17,6 @@ export default function Signup() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const updateField = (event) => {
     const { name, value } = event.target;
@@ -74,15 +74,12 @@ export default function Signup() {
     const validationError = validateForm();
 
     if (validationError) {
-      setError(validationError);
-      setSuccess('');
+      toast.error(validationError);
       return;
     }
 
     try {
       setSubmitting(true);
-      setError('');
-      setSuccess('');
 
       await registerUser({
         fullName: formData.fullName.trim(),
@@ -91,13 +88,13 @@ export default function Signup() {
         role: 'Member',
       });
 
-      setSuccess('Account created successfully. Redirecting to login...');
+      toast.success('Account created successfully. Redirecting to login...');
 
       setTimeout(() => {
         navigate('/login');
       }, 900);
     } catch (err) {
-      setError(err.message || 'Signup failed. Please try again.');
+      toast.error(err.message || 'Signup failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -122,9 +119,6 @@ export default function Signup() {
               Signup
             </Link>
           </div>
-
-          {error && <div className="auth-alert">{error}</div>}
-          {success && <div className="auth-success">{success}</div>}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="auth-field">

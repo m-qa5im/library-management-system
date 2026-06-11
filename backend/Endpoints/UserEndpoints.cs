@@ -206,6 +206,110 @@ namespace backend.Endpoints
                 var userDtos = users.Select(u => new { u.Id, u.FullName, u.Email, u.Role, u.IsActive });
                 return Results.Ok(userDtos);
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+
+            // ==========================================================
+            // 👤 GET /users/{userId} - Fetch single user profile (Self/Admin only)
+            // ==========================================================
+            group.MapGet("/{userId:int}", async (int userId, IGenericRepository<User> userRepo, ClaimsPrincipal userPrincipal) =>
+            {
+                var currentUserIdClaim = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var currentUserRole = userPrincipal.FindFirst(ClaimTypes.Role)?.Value;
+
+                if (currentUserRole != "Admin" && currentUserIdClaim != userId.ToString())
+                {
+                    return Results.Json(new { error = "Forbidden: You do not have permission to access this user profile." }, statusCode: 403);
+                }
+
+                var user = await userRepo.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return Results.NotFound("User not found.");
+                }
+
+                return Results.Ok(new { user.Id, user.FullName, user.Email, user.Role });
+            }).RequireAuthorization();
+
+            // ==========================================================
+            // ✍️ PUT /users/{userId} - Update user profile details (Self/Admin only)
+            // ==========================================================
+            group.MapPut("/{userId:int}", async (int userId, [FromBody] UserUpdateDto dto, IGenericRepository<User> userRepo, ClaimsPrincipal userPrincipal) =>
+            {
+                var currentUserIdClaim = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var currentUserRole = userPrincipal.FindFirst(ClaimTypes.Role)?.Value;
+
+                if (currentUserRole != "Admin" && currentUserIdClaim != userId.ToString())
+                {
+                    return Results.Json(new { error = "Forbidden: You do not have permission to modify this user profile." }, statusCode: 403);
+                }
+
+                var user = await userRepo.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return Results.NotFound("User not found.");
+                }
+
+                // 1. Update Full Name
+                if (!string.IsNullOrWhiteSpace(dto.FullName))
+                {
+                    user.FullName = dto.FullName.Trim();
+                }
+
+                // 2. Update Email Address
+                if (!string.IsNullOrWhiteSpace(dto.Email))
+                {
+                    var sanitizedEmail = dto.Email.Trim().ToLowerInvariant();
+                    var emailRegex = new System.Text.RegularExpressions.Regex(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+                    if (!emailRegex.IsMatch(sanitizedEmail))
+                    {
+                        return Results.BadRequest("Invalid email address format.");
+                    }
+
+                    if (sanitizedEmail != user.Email)
+                    {
+                        var emailExists = await userRepo.FindAsync(u => u.Email == sanitizedEmail);
+                        if (emailExists.Any())
+                        {
+                            return Results.BadRequest("A user record with this email address already exists.");
+                        }
+                        user.Email = sanitizedEmail;
+                    }
+                }
+
+                // 3. Optional Password Rotation
+                if (!string.IsNullOrEmpty(dto.NewPassword))
+                {
+                    if (string.IsNullOrEmpty(dto.CurrentPassword))
+                    {
+                        return Results.BadRequest("Current password is required to change password.");
+                    }
+
+                    if (!BCryptNet.Verify(dto.CurrentPassword, user.PasswordHash))
+                    {
+                        return Results.BadRequest("Incorrect current password.");
+                    }
+
+                    if (dto.NewPassword.Length < 6)
+                    {
+                        return Results.BadRequest("New password must contain at least 6 characters.");
+                    }
+
+                    string secureHash = BCryptNet.HashPassword(dto.NewPassword, workFactor: 11);
+                    user.PasswordHash = secureHash;
+                }
+
+                user.UpdatedAt = DateTime.UtcNow;
+                userRepo.Update(user);
+                await userRepo.SaveChangesAsync();
+
+                return Results.Ok(new
+                {
+                    user.Id,
+                    user.FullName,
+                    user.Email,
+                    user.Role,
+                    Message = "Account profile settings updated successfully."
+                });
+            }).RequireAuthorization();
         }
     }
 }

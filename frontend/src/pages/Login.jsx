@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { getMemberProfile, loginUser } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 import './AuthPage.css';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -18,7 +20,6 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState('Member');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
 
   const updateField = (event) => {
     const { name, value } = event.target;
@@ -52,13 +53,12 @@ export default function Login() {
     const validationError = validateForm();
 
     if (validationError) {
-      setError(validationError);
+      toast.error(validationError);
       return;
     }
 
     try {
       setSubmitting(true);
-      setError('');
 
       const loginResponse = await loginUser({
         email: formData.email.trim(),
@@ -66,18 +66,19 @@ export default function Login() {
       });
 
       if (!loginResponse?.userId || !loginResponse?.role) {
-        setError('Invalid authentication response received from server.');
+        toast.error('Invalid authentication response received from server.');
         return;
       }
 
       if (loginResponse.role !== selectedRole) {
-        setError(
+        toast.error(
           `This account is registered as ${loginResponse.role}. Please select the correct account role.`
         );
         return;
       }
 
       if (loginResponse.role === 'Admin') {
+        toast.success(loginResponse.message || 'Authentication verified successfully.');
         login({
           userId: loginResponse.userId,
           role: loginResponse.role,
@@ -92,6 +93,7 @@ export default function Login() {
       if (loginResponse.role === 'Member') {
         const memberProfile = await getMemberProfile(loginResponse.userId, loginResponse.token);
 
+        toast.success(loginResponse.message || 'Authentication verified successfully.');
         login({
           userId: loginResponse.userId,
           role: loginResponse.role,
@@ -106,9 +108,9 @@ export default function Login() {
         return;
       }
 
-      setError('Unsupported account role.');
+      toast.error('Unsupported account role.');
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
+      toast.error(err.message || 'Login failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -134,8 +136,6 @@ export default function Login() {
               Signup
             </Link>
           </div>
-
-          {error && <div className="auth-alert">{error}</div>}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <div className="auth-field">

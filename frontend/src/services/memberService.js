@@ -41,7 +41,17 @@ export async function fetchMyLoans(memberId, token) {
   return handleResponse(response);
 }
 
-// Submit a request for self-checkout
+// Submit a borrow REQUEST (pending admin approval)
+export async function requestBorrow(bookId, token) {
+  const response = await fetch(`${API_BASE_URL}/transactions/request`, {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ bookId }),
+  });
+  return handleResponse(response);
+}
+
+// Submit a direct self-checkout (legacy endpoint, kept for reference)
 export async function borrowBook(bookId, token) {
   const response = await fetch(`${API_BASE_URL}/transactions/borrow`, {
     method: 'POST',

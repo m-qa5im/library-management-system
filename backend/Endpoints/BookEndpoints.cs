@@ -3,6 +3,8 @@ using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using backend.DTOs;
+using Microsoft.EntityFrameworkCore;
+using backend.Data;
 
 namespace backend.Endpoints
 {
@@ -57,6 +59,7 @@ namespace backend.Endpoints
                 }
 
                 // Map incoming DTO network data straight into our underlying Database Model
+                var qty = dto.TotalQuantity.HasValue && dto.TotalQuantity.Value > 0 ? dto.TotalQuantity.Value : 1;
                 var newBook = new Book
                 {
                     Title = dto.Title,
@@ -66,6 +69,8 @@ namespace backend.Endpoints
                     CoverImageUrl = coverUrl,
                     Isbn = sanitizedIsbn,
                     AvailabilityStatus = "Available",
+                    TotalQuantity = qty,
+                    AvailableQuantity = qty,
                     IsActive = true
                 };
 
@@ -112,6 +117,8 @@ namespace backend.Endpoints
                 if (!string.IsNullOrWhiteSpace(dto.Category)) book.Category = dto.Category;
                 if (dto.Description != null) book.Description = dto.Description;
                 if (!string.IsNullOrWhiteSpace(dto.AvailabilityStatus)) book.AvailabilityStatus = dto.AvailabilityStatus;
+                if (dto.TotalQuantity.HasValue && dto.TotalQuantity.Value > 0) book.TotalQuantity = dto.TotalQuantity.Value;
+                if (dto.AvailableQuantity.HasValue && dto.AvailableQuantity.Value >= 0) book.AvailableQuantity = dto.AvailableQuantity.Value;
                 
                 if (dto.Isbn != null)
                 {
@@ -151,6 +158,27 @@ namespace backend.Endpoints
 
                 return Results.Ok(new { Message = "Book catalog item modified successfully.", UpdatedBook = book });
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+
+            // GET /books/search - Paginated search (Authenticated users)
+            group.MapGet("/search", async ([FromQuery] string? q, [FromQuery] string? status, AppDbContext dbContext, [FromQuery] int page = 1, [FromQuery] int pageSize = 10) =>
+            {
+                var query = dbContext.Books.Where(b => b.IsActive).AsQueryable();
+                if (!string.IsNullOrWhiteSpace(q))
+                {
+                    var term = q.Trim().ToLower();
+                    query = query.Where(b => b.Title.ToLower().Contains(term) ||
+                                             b.Author.ToLower().Contains(term) ||
+                                             (b.Isbn != null && b.Isbn.ToLower().Contains(term)) ||
+                                             b.Id.ToString() == term);
+                }
+                if (!string.IsNullOrWhiteSpace(status))
+                {
+                    query = query.Where(b => b.AvailabilityStatus == status);
+                }
+                var total = await query.CountAsync();
+                var items = await query.OrderBy(b => b.Title).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+                return Results.Ok(new { Items = items, TotalCount = total });
+            }).RequireAuthorization();
         }
     }
 }

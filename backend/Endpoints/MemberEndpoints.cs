@@ -3,6 +3,8 @@ using backend.Interfaces;
 using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using backend.Data;
 
 namespace backend.Endpoints
 {
@@ -141,6 +143,22 @@ namespace backend.Endpoints
                 {
                     return Results.BadRequest("Cannot delete member. Ensure they have no active loan records or transactions associated with their profile.");
                 }
+            }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+
+            // GET /members/search - Paginated search by name or email (Admin only)
+            group.MapGet("/search", async ([FromQuery] string? q, AppDbContext dbContext, [FromQuery] int page = 1, [FromQuery] int pageSize = 10) =>
+            {
+                var query = dbContext.Members.Include(m => m.User).AsQueryable();
+                if (!string.IsNullOrWhiteSpace(q))
+                {
+                    var term = q.Trim().ToLower();
+                    query = query.Where(m => m.MemberCode.ToLower().Contains(term) ||
+                                             m.User.FullName.ToLower().Contains(term) ||
+                                             m.User.Email.ToLower().Contains(term));
+                }
+                var total = await query.CountAsync();
+                var items = await query.OrderBy(m => m.User.FullName).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+                return Results.Ok(new { Items = items, TotalCount = total });
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
         }
     }

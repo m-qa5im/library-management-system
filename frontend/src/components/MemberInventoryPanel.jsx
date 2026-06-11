@@ -1,7 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { updateMember, deleteMember } from '../services/adminService';
+import { useToast } from '../context/ToastContext';
 
 export default function MemberInventoryPanel({ members, users = [], loading, token, onRefresh, onAddMemberClick }) {
+  const toast = useToast();
+
   // ─── MEMBER CRUD STATE ───
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [memberCurrentPage, setMemberCurrentPage] = useState(1);
@@ -15,8 +18,6 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [modalError, setModalError] = useState('');
-  const [modalSuccess, setModalSuccess] = useState('');
 
   // Helper to resolve linked User details (with fallback to users array)
   const getMemberUser = (member) => {
@@ -108,39 +109,38 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
   const handleEditMemberSubmit = async (e) => {
     e.preventDefault();
     if (!editForm.fullName.trim() || !editForm.email.trim()) {
-      setModalError('Name and Email fields are strictly mandatory.');
+      toast.error('Name and Email fields are strictly mandatory.');
       return;
     }
 
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(editForm.email.trim())) {
-      setModalError('Invalid email address format.');
+      toast.error('Invalid email address format.');
       return;
     }
 
     if (editForm.password && editForm.password.trim()) {
       const pwd = editForm.password.trim();
       if (pwd.length < 8) {
-        setModalError('Password must contain at least 8 characters.');
+        toast.error('Password must contain at least 8 characters.');
         return;
       }
       if (!/[A-Z]/.test(pwd)) {
-        setModalError('Password must contain at least one uppercase letter.');
+        toast.error('Password must contain at least one uppercase letter.');
         return;
       }
       if (!/[a-z]/.test(pwd)) {
-        setModalError('Password must contain at least one lowercase letter.');
+        toast.error('Password must contain at least one lowercase letter.');
         return;
       }
       if (!/[0-9]/.test(pwd)) {
-        setModalError('Password must contain at least one numeric digit.');
+        toast.error('Password must contain at least one numeric digit.');
         return;
       }
     }
 
     try {
       setSubmitting(true);
-      setModalError('');
 
       const payload = {
         status: editForm.status,
@@ -153,14 +153,12 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
       }
 
       await updateMember(editingMember.id, payload, token);
-      setModalSuccess('Member profile updated successfully!');
-      setTimeout(() => {
-        closeModal();
-        setEditingMember(null);
-        if (onRefresh) onRefresh();
-      }, 1000);
+      toast.success('Member profile updated successfully!');
+      closeModal();
+      setEditingMember(null);
+      if (onRefresh) onRefresh();
     } catch (err) {
-      setModalError(err.message || 'Failed to update member profile.');
+      toast.error(err.message || 'Failed to update member profile.');
     } finally {
       setSubmitting(false);
     }
@@ -169,24 +167,32 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
   const handleDeleteMember = async (id) => {
     try {
       setSubmitting(true);
-      setModalError('');
       await deleteMember(id, token);
-      setModalSuccess('Member profile purged successfully!');
-      setTimeout(() => {
-        setDeletingMember(null);
-        setModalSuccess('');
-        if (onRefresh) onRefresh();
-      }, 1000);
+      toast.success('Member profile purged successfully!');
+      setDeletingMember(null);
+      closeModal();
+      if (onRefresh) onRefresh();
     } catch (err) {
-      setModalError(err.message || 'Failed to delete member.');
+      toast.error(err.message || 'Failed to delete member.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const handleReactivateMember = async (member) => {
+    try {
+      setSubmitting(true);
+      await updateMember(member.id, { status: 'Active' }, token);
+      toast.success('Member profile reactivated successfully!');
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Failed to reactivate member profile.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const closeModal = () => {
-    setModalError('');
-    setModalSuccess('');
     setSubmitting(false);
   };
 
@@ -255,10 +261,23 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
                       <td>{userObj?.email || 'N/A'}</td>
                       <td style={{ fontWeight: 500, color: '#00288e' }}>{memberCodeDisplay}</td>
                       <td>
-                        <span className={`db-status-dot-badge ${isActive ? 'available' : 'borrowed'}`}>
-                          <span className="dot" />
-                          <span>{member.status}</span>
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`db-status-dot-badge ${isActive ? 'available' : 'borrowed'}`}>
+                            <span className="dot" />
+                            <span>{member.status}</span>
+                          </span>
+                          {!isActive && (
+                            <button
+                              type="button"
+                              className="db-reactivate-btn"
+                              onClick={() => handleReactivateMember(member)}
+                              disabled={submitting}
+                              title="Reactivate Profile"
+                            >
+                              Reactivate
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <div className="db-table-actions">
@@ -410,9 +429,6 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
             </div>
             <form onSubmit={handleEditMemberSubmit}>
               <div className="modal-body">
-                {modalError && <div className="form-alert">{modalError}</div>}
-                {modalSuccess && <div className="form-success">{modalSuccess}</div>}
-
                 <div style={{ marginBottom: '20px' }}>
                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#505f76' }}>
                     Modifying profile details for member code <strong>{editingMember.memberCode}</strong>.
@@ -496,8 +512,6 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
               </button>
             </div>
             <div className="modal-body">
-              {modalError && <div className="form-alert">{modalError}</div>}
-              {modalSuccess && <div className="form-success">{modalSuccess}</div>}
               <p style={{ margin: 0, fontSize: '0.9rem', color: '#505f76', lineHeight: 1.6 }}>
                 Are you absolutely sure you want to permanently delete the member account for <strong>&quot;{getMemberUser(deletingMember)?.fullName}&quot;</strong> ({deletingMember.memberCode})?
               </p>
