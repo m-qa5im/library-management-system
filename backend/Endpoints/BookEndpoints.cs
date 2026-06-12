@@ -71,6 +71,15 @@ namespace backend.Endpoints
                     coverUrl = $"https://covers.openlibrary.org/b/isbn/{sanitizedIsbn}-M.jpg?default=false";
                 }
 
+                if (!string.IsNullOrWhiteSpace(sanitizedIsbn))
+                {
+                    var existingBook = await bookRepo.FindSingleAsync(b => b.Isbn == sanitizedIsbn);
+                    if (existingBook != null)
+                    {
+                        return Results.BadRequest("A book with this ISBN already exists in the catalog.");
+                    }
+                }
+
                 // Map incoming DTO network data straight into our underlying Database Model
                 var qty = dto.TotalQuantity.HasValue && dto.TotalQuantity.Value > 0 ? dto.TotalQuantity.Value : 1;
                 var newBook = new Book
@@ -104,12 +113,19 @@ namespace backend.Endpoints
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // DELETE /books/{id} - Remove or soft-delete a literary asset from the inventory database (Admin only)
-            group.MapDelete("/{id:int}", async (int id, IBookRepository bookRepo, IMemoryCache cache) =>
+            group.MapDelete("/{id:int}", async (int id, IBookRepository bookRepo, AppDbContext dbContext, IMemoryCache cache) =>
             {
                 var targetBook = await bookRepo.GetByIdAsync(id);
                 if (targetBook == null)
                 {
                     return Results.NotFound($"No book asset found corresponding to ID: {id}");
+                }
+
+                // Check if book has any associated transactions before deleting
+                var hasTransactions = await dbContext.BookTransactions.AnyAsync(t => t.BookId == id);
+                if (hasTransactions)
+                {
+                    return Results.BadRequest("Cannot delete book. Ensure it has no active loans or transaction logs associated with it.");
                 }
 
                 bookRepo.Delete(targetBook);
@@ -155,6 +171,12 @@ namespace backend.Endpoints
                         if (!sanitizedIsbn.All(char.IsLetterOrDigit))
                         {
                             return Results.BadRequest("ISBN must contain only alphanumeric characters.");
+                        }
+
+                        var bookWithIsbn = await bookRepo.FindSingleAsync(b => b.Isbn == sanitizedIsbn && b.Id != id);
+                        if (bookWithIsbn != null)
+                        {
+                            return Results.BadRequest("Another book with this ISBN already exists in the catalog.");
                         }
                         book.Isbn = sanitizedIsbn;
                     }
