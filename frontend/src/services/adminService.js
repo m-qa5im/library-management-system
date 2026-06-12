@@ -1,36 +1,4 @@
-const API_BASE_URL = 'http://localhost:5117';
-
-async function handleResponse(response) {
-  let data = null;
-  let text = '';
-  try {
-    text = await response.text();
-    data = JSON.parse(text);
-  } catch (e) {
-    // If it's not valid JSON, we treat it as raw text
-    data = null;
-  }
-
-  if (!response.ok) {
-    const message =
-      data?.detailedError ||
-      data?.message ||
-      data?.error ||
-      text ||
-      'Request failed. Please try again.';
-
-    throw new Error(message);
-  }
-
-  return data;
-}
-
-function getAuthHeaders(token) {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
-}
+import { API_BASE_URL, handleResponse, getAuthHeaders } from './apiClient';
 
 // ─── DASHBOARD STATS ───
 export async function getDashboardStats(token) {

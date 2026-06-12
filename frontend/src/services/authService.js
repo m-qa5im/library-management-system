@@ -1,29 +1,4 @@
-const API_BASE_URL = 'http://localhost:5117';
-
-async function handleResponse(response) {
-  let data = null;
-  let text = '';
-  try {
-    text = await response.text();
-    data = JSON.parse(text);
-  } catch (e) {
-    // If it's not valid JSON, we treat it as raw text
-    data = null;
-  }
-
-  if (!response.ok) {
-    const message =
-      data?.detailedError ||
-      data?.message ||
-      data?.error ||
-      text ||
-      'Request failed. Please try again.';
-
-    throw new Error(message);
-  }
-
-  return data;
-}
+import { API_BASE_URL, handleResponse } from './apiClient';
 
 export async function registerUser(payload) {
   const response = await fetch(`${API_BASE_URL}/users/register`, {

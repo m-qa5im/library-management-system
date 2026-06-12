@@ -507,7 +507,7 @@ export default function MemberDashboard() {
               {loading ? (
                 <div className="db-table-empty">Syncing borrowing ledger...</div>
               ) : loans.length === 0 ? (
-                <div className="db-table-empty">You do not have any active books out on loan.</div>
+                <div className="db-table-empty">You have no borrow requests or loan history.</div>
               ) : (
                 <table className="db-table">
                   <thead>
@@ -516,6 +516,7 @@ export default function MemberDashboard() {
                       <th>Book Title</th>
                       <th>Issue Date</th>
                       <th>Due Date</th>
+                      <th>Return Date</th>
                       <th>Status</th>
                     </tr>
                   </thead>
@@ -536,10 +537,26 @@ export default function MemberDashboard() {
                           <td style={{ fontWeight: 600 }}>{loan.book?.title || 'Unknown Asset'}</td>
                           <td>{formatDate(loan.issueDate)}</td>
                           <td>{formatDate(loan.dueDate)}</td>
+                          <td>{formatDate(loan.returnDate)}</td>
                           <td>
-                            <span className={`badge ${isOverdue ? 'overdue' : 'on-time'}`}>
-                              {isOverdue ? 'Overdue' : 'On Time'}
-                            </span>
+                            {(() => {
+                              if (loan.status === 'Pending') {
+                                return <span className="badge pending">Pending Approval</span>;
+                              }
+                              if (loan.status === 'Rejected') {
+                                return <span className="badge rejected">Request Rejected</span>;
+                              }
+                              if (loan.status === 'Returned') {
+                                return <span className="badge returned">Returned</span>;
+                              }
+                              // Active issue/borrowed state
+                              const isOverdue = new Date() > new Date(loan.dueDate);
+                              return (
+                                <span className={`badge ${isOverdue ? 'overdue' : 'on-time'}`}>
+                                  {isOverdue ? 'Overdue' : 'Borrowed'}
+                                </span>
+                              );
+                            })()}
                           </td>
                         </tr>
                       );

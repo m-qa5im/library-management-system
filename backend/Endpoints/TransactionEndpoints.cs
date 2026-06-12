@@ -29,47 +29,57 @@ namespace backend.Endpoints
                     return Results.BadRequest("Invalid member profile or account is currently suspended.");
                 }
 
-                // 2. Perform atomic decrement
-                var rowsAffected = await dbContext.Database.ExecuteSqlRawAsync(
-                    "UPDATE books SET available_quantity = available_quantity - 1 WHERE id = {0} AND available_quantity > 0 AND is_active = true", 
-                    dto.BookId);
-                
-                if (rowsAffected == 0)
+                using var dbTx = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    return Results.Json(new { error = "This book is currently unavailable or out of stock." }, statusCode: 409);
-                }
-
-                var book = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == dto.BookId);
-                if (book != null)
-                {
-                    await dbContext.Entry(book).ReloadAsync();
-                    if (book.AvailableQuantity <= 0)
+                    // 2. Perform atomic decrement
+                    var rowsAffected = await dbContext.Database.ExecuteSqlRawAsync(
+                        "UPDATE books SET available_quantity = available_quantity - 1 WHERE id = {0} AND available_quantity > 0 AND is_active = true", 
+                        dto.BookId);
+                    
+                    if (rowsAffected == 0)
                     {
-                        book.AvailabilityStatus = "Issued";
+                        return Results.Json(new { error = "This book is currently unavailable or out of stock." }, statusCode: 409);
                     }
-                    book.UpdatedAt = DateTime.UtcNow;
-                    await dbContext.SaveChangesAsync();
+
+                    var book = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == dto.BookId);
+                    if (book != null)
+                    {
+                        await dbContext.Entry(book).ReloadAsync();
+                        if (book.AvailableQuantity <= 0)
+                        {
+                            book.AvailabilityStatus = "Issued";
+                        }
+                        book.UpdatedAt = DateTime.UtcNow;
+                        await dbContext.SaveChangesAsync();
+                    }
+
+                    var issueDate = dto.IssueDate ?? DateTime.UtcNow;
+                    var dueDate = dto.DueDate ?? issueDate.AddDays(14);
+
+                    // 4. Generate the Circulation Ledger Entry (Enforcing the 14-Day Due Date Matrix)
+                    var transaction = new BookTransaction
+                    {
+                        BookId = dto.BookId,
+                        MemberId = dto.MemberId,
+                        IssueDate = issueDate,
+                        DueDate = dueDate,
+                        Status = "Issued",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    await transactionRepo.AddAsync(transaction);
+                    await transactionRepo.SaveChangesAsync();
+
+                    await dbTx.CommitAsync();
+                    return Results.Ok(new { Message = "Book issued successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
                 }
-
-                var issueDate = dto.IssueDate ?? DateTime.UtcNow;
-                var dueDate = dto.DueDate ?? issueDate.AddDays(14);
-
-                // 4. Generate the Circulation Ledger Entry (Enforcing the 14-Day Due Date Matrix)
-                var transaction = new BookTransaction
+                catch (Exception)
                 {
-                    BookId = dto.BookId,
-                    MemberId = dto.MemberId,
-                    IssueDate = issueDate,
-                    DueDate = dueDate,
-                    Status = "Issued",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                await transactionRepo.AddAsync(transaction);
-                await transactionRepo.SaveChangesAsync();
-
-                return Results.Ok(new { Message = "Book issued successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
+                    await dbTx.RollbackAsync();
+                    throw;
+                }
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // POST /transactions/return - Admin only
@@ -128,44 +138,54 @@ namespace backend.Endpoints
                     return Results.BadRequest("Invalid member profile or account is currently suspended.");
                 }
     
-                // 2. Perform atomic decrement
-                var rowsAffected = await dbContext.Database.ExecuteSqlRawAsync(
-                    "UPDATE books SET available_quantity = available_quantity - 1 WHERE id = {0} AND available_quantity > 0 AND is_active = true", 
-                    dto.BookId);
-                
-                if (rowsAffected == 0)
+                using var dbTx = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    return Results.Json(new { error = "This book is currently unavailable or out of stock." }, statusCode: 409);
-                }
-    
-                var book = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == dto.BookId);
-                if (book != null)
-                {
-                    await dbContext.Entry(book).ReloadAsync();
-                    if (book.AvailableQuantity <= 0)
+                    // 2. Perform atomic decrement
+                    var rowsAffected = await dbContext.Database.ExecuteSqlRawAsync(
+                        "UPDATE books SET available_quantity = available_quantity - 1 WHERE id = {0} AND available_quantity > 0 AND is_active = true", 
+                        dto.BookId);
+                    
+                    if (rowsAffected == 0)
                     {
-                        book.AvailabilityStatus = "Issued";
+                        return Results.Json(new { error = "This book is currently unavailable or out of stock." }, statusCode: 409);
                     }
-                    book.UpdatedAt = DateTime.UtcNow;
-                    await dbContext.SaveChangesAsync();
+        
+                    var book = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == dto.BookId);
+                    if (book != null)
+                    {
+                        await dbContext.Entry(book).ReloadAsync();
+                        if (book.AvailableQuantity <= 0)
+                        {
+                            book.AvailabilityStatus = "Issued";
+                        }
+                        book.UpdatedAt = DateTime.UtcNow;
+                        await dbContext.SaveChangesAsync();
+                    }
+        
+                    // 4. Generate transaction ledger
+                    var transaction = new BookTransaction
+                    {
+                        BookId = dto.BookId,
+                        MemberId = member.Id,
+                        IssueDate = DateTime.UtcNow,
+                        DueDate = DateTime.UtcNow.AddDays(14),
+                        Status = "Issued",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+        
+                    await transactionRepo.AddAsync(transaction);
+                    await transactionRepo.SaveChangesAsync();
+        
+                    await dbTx.CommitAsync();
+                    return Results.Ok(new { Message = "Book borrowed successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
                 }
-    
-                // 4. Generate transaction ledger
-                var transaction = new BookTransaction
+                catch (Exception)
                 {
-                    BookId = dto.BookId,
-                    MemberId = member.Id,
-                    IssueDate = DateTime.UtcNow,
-                    DueDate = DateTime.UtcNow.AddDays(14),
-                    Status = "Issued",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-    
-                await transactionRepo.AddAsync(transaction);
-                await transactionRepo.SaveChangesAsync();
-    
-                return Results.Ok(new { Message = "Book borrowed successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
+                    await dbTx.RollbackAsync();
+                    throw;
+                }
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Member" });
 
             // GET /transactions/my-loans/{memberId} - Fetch all active checked-out titles for a member (Self-user or Admin)
@@ -193,12 +213,14 @@ namespace backend.Endpoints
                     }
                 }
 
-                // Retrieve historical lines where return date is null
-                var activeLoans = await dbContext.BookTransactions
+                // Retrieve all historical circulation lines for the member
+                var loans = await dbContext.BookTransactions
+                    .AsNoTracking()
                     .Include(t => t.Book)
-                    .Where(t => t.MemberId == memberId && t.ReturnDate == null)
+                    .Where(t => t.MemberId == memberId)
+                    .OrderByDescending(t => t.CreatedAt)
                     .ToListAsync();
-                return Results.Ok(activeLoans);
+                return Results.Ok(loans);
             }).RequireAuthorization();
 
             // GET /transactions - Fetch all library transaction records (Admin Overview Log)
@@ -298,43 +320,53 @@ namespace backend.Endpoints
                 if (existing.Any())
                     return Results.BadRequest("You already have an active request or loan for this book.");
     
-                // Perform atomic decrement
-                var rowsAffected = await dbContext.Database.ExecuteSqlRawAsync(
-                    "UPDATE books SET available_quantity = available_quantity - 1 WHERE id = {0} AND available_quantity > 0 AND is_active = true", 
-                    dto.BookId);
-                
-                if (rowsAffected == 0)
+                using var dbTx = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    return Results.Json(new { error = "This book is currently unavailable or out of stock." }, statusCode: 409);
-                }
-    
-                var book = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == dto.BookId);
-                if (book != null)
-                {
-                    await dbContext.Entry(book).ReloadAsync();
-                    if (book.AvailableQuantity <= 0)
+                    // Perform atomic decrement
+                    var rowsAffected = await dbContext.Database.ExecuteSqlRawAsync(
+                        "UPDATE books SET available_quantity = available_quantity - 1 WHERE id = {0} AND available_quantity > 0 AND is_active = true", 
+                        dto.BookId);
+                    
+                    if (rowsAffected == 0)
                     {
-                        book.AvailabilityStatus = "Issued";
+                        return Results.Json(new { error = "This book is currently unavailable or out of stock." }, statusCode: 409);
                     }
-                    book.UpdatedAt = DateTime.UtcNow;
-                    await dbContext.SaveChangesAsync();
+        
+                    var book = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == dto.BookId);
+                    if (book != null)
+                    {
+                        await dbContext.Entry(book).ReloadAsync();
+                        if (book.AvailableQuantity <= 0)
+                        {
+                            book.AvailabilityStatus = "Issued";
+                        }
+                        book.UpdatedAt = DateTime.UtcNow;
+                        await dbContext.SaveChangesAsync();
+                    }
+        
+                    var transaction = new BookTransaction
+                    {
+                        BookId = dto.BookId,
+                        MemberId = member.Id,
+                        IssueDate = DateTime.UtcNow,
+                        DueDate = DateTime.UtcNow.AddDays(14),
+                        Status = "Pending",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+        
+                    await transactionRepo.AddAsync(transaction);
+                    await transactionRepo.SaveChangesAsync();
+        
+                    await dbTx.CommitAsync();
+                    return Results.Ok(new { Message = "Borrow request submitted. Awaiting admin approval.", TransactionId = transaction.Id });
                 }
-    
-                var transaction = new BookTransaction
+                catch (Exception)
                 {
-                    BookId = dto.BookId,
-                    MemberId = member.Id,
-                    IssueDate = DateTime.UtcNow,
-                    DueDate = DateTime.UtcNow.AddDays(14),
-                    Status = "Pending",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-    
-                await transactionRepo.AddAsync(transaction);
-                await transactionRepo.SaveChangesAsync();
-    
-                return Results.Ok(new { Message = "Borrow request submitted. Awaiting admin approval.", TransactionId = transaction.Id });
+                    await dbTx.RollbackAsync();
+                    throw;
+                }
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Member" });
 
             // GET /transactions/pending - Admin: paginated list of pending borrow requests

@@ -14,13 +14,27 @@ namespace backend.Endpoints
             // GET /dashboard/stats - Fetch summary metrics (Admin only)
             group.MapGet("/stats", async (AppDbContext dbContext) =>
             {
-                var totalBooks = await dbContext.Books.SumAsync(b => b.TotalQuantity);
-                var totalMembers = await dbContext.Members.CountAsync();
-                var borrowedBooks = await dbContext.Books.SumAsync(b => b.TotalQuantity - b.AvailableQuantity);
-                var availableBooks = await dbContext.Books.Where(b => b.IsActive).SumAsync(b => b.AvailableQuantity);
-                var exhaustedTitlesCount = await dbContext.Books.CountAsync(b => b.AvailableQuantity == 0 && b.IsActive);
+                var bookStats = await dbContext.Books
+                    .AsNoTracking()
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        TotalBooks = g.Sum(b => b.TotalQuantity),
+                        BorrowedBooks = g.Sum(b => b.TotalQuantity - b.AvailableQuantity),
+                        AvailableBooks = g.Sum(b => b.IsActive ? b.AvailableQuantity : 0),
+                        ExhaustedTitlesCount = g.Count(b => b.AvailableQuantity == 0 && b.IsActive)
+                    })
+                    .FirstOrDefaultAsync();
+
+                var totalBooks = bookStats?.TotalBooks ?? 0;
+                var borrowedBooks = bookStats?.BorrowedBooks ?? 0;
+                var availableBooks = bookStats?.AvailableBooks ?? 0;
+                var exhaustedTitlesCount = bookStats?.ExhaustedTitlesCount ?? 0;
+
+                var totalMembers = await dbContext.Members.AsNoTracking().CountAsync();
 
                 var topMembers = await dbContext.BookTransactions
+                    .AsNoTracking()
                     .Where(t => t.Status == "Issued" || t.Status == "Returned")
                     .GroupBy(t => new { t.MemberId, t.Member.User.FullName, t.Member.MemberCode })
                     .Select(g => new
@@ -35,6 +49,7 @@ namespace backend.Endpoints
                     .ToListAsync();
 
                 var topBooks = await dbContext.BookTransactions
+                    .AsNoTracking()
                     .Where(t => t.Status == "Issued" || t.Status == "Returned")
                     .GroupBy(t => new { t.BookId, t.Book.Title, t.Book.Author, t.Book.AvailableQuantity })
                     .Select(g => new

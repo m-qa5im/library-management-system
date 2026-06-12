@@ -1,6 +1,7 @@
 using backend.DTOs;
 using backend.Interfaces;
 using backend.Models;
+using backend.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -75,8 +76,7 @@ namespace backend.Endpoints
                     if (!string.IsNullOrWhiteSpace(dto.Email))
                     {
                         var sanitizedEmail = dto.Email.Trim().ToLowerInvariant();
-                        var emailRegex = new System.Text.RegularExpressions.Regex(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", System.Text.RegularExpressions.RegexOptions.Compiled);
-                        if (!emailRegex.IsMatch(sanitizedEmail))
+                        if (!ValidationHelper.IsValidEmail(sanitizedEmail))
                         {
                             return Results.BadRequest("Invalid email address format.");
                         }
@@ -93,21 +93,10 @@ namespace backend.Endpoints
 
                     if (!string.IsNullOrWhiteSpace(dto.Password))
                     {
-                        if (dto.Password.Length < 8)
+                        var passwordError = ValidationHelper.ValidatePassword(dto.Password);
+                        if (passwordError != null)
                         {
-                            return Results.BadRequest("Password must contain at least 8 characters.");
-                        }
-                        if (!dto.Password.Any(char.IsUpper))
-                        {
-                            return Results.BadRequest("Password must contain at least one uppercase letter.");
-                        }
-                        if (!dto.Password.Any(char.IsLower))
-                        {
-                            return Results.BadRequest("Password must contain at least one lowercase letter.");
-                        }
-                        if (!dto.Password.Any(char.IsDigit))
-                        {
-                            return Results.BadRequest("Password must contain at least one numeric digit.");
+                            return Results.BadRequest(passwordError);
                         }
 
                         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 11);

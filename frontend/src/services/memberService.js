@@ -1,27 +1,4 @@
-const API_BASE_URL = 'http://localhost:5117';
-
-async function handleResponse(response) {
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const message =
-      data?.detailedError ||
-      data?.message ||
-      data?.error ||
-      'Request failed. Please try again.';
-
-    throw new Error(message);
-  }
-
-  return data;
-}
-
-function getAuthHeaders(token) {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
-}
+import { API_BASE_URL, handleResponse, getAuthHeaders } from './apiClient';
 
 // Fetch all active books in the library catalog
 export async function fetchCatalogBooks(token) {
