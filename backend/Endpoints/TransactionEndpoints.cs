@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace backend.Endpoints
 {
@@ -21,7 +22,8 @@ namespace backend.Endpoints
                 IGenericRepository<User> userRepo,
                 IGenericRepository<Member> memberRepo,
                 IBookRepository bookRepo,
-                IGenericRepository<BookTransaction> transactionRepo) =>
+                IGenericRepository<BookTransaction> transactionRepo,
+                IMemoryCache cache) =>
             {
                 // 1. Verify Member exists and is structurally Active
                 var member = await memberRepo.GetByIdAsync(dto.MemberId);
@@ -74,7 +76,16 @@ namespace backend.Endpoints
                     await transactionRepo.SaveChangesAsync();
 
                     await dbTx.CommitAsync();
+
+                    cache.Remove("available_books");
+                    cache.Remove("catalog_books");
+
                     return Results.Ok(new { Message = "Book issued successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    await dbTx.RollbackAsync();
+                    return Results.Conflict(new { error = "Conflict: The book inventory was modified by another transaction. Please try again." });
                 }
                 catch (Exception)
                 {
@@ -85,36 +96,57 @@ namespace backend.Endpoints
 
             // POST /transactions/return - Admin only
             group.MapPost("/return", async ([FromBody] ReturnBookDto dto, 
+                AppDbContext dbContext,
                 IBookRepository bookRepo,
-                IGenericRepository<BookTransaction> transactionRepo) =>
+                IGenericRepository<BookTransaction> transactionRepo,
+                IMemoryCache cache) =>
             {
-                // 1. Locate the active ledger row using our partial matching index strategy
-                var transaction = await transactionRepo.FindSingleAsync(t => 
-                    t.BookId == dto.BookId && t.MemberId == dto.MemberId && t.ReturnDate == null && t.Status == "Issued");
-
-                if (transaction == null)
+                using var dbTx = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    return Results.NotFound("No active tracking transaction record found for this explicit Book-Member pair.");
+                    // 1. Locate the active ledger row using our partial matching index strategy
+                    var transaction = await transactionRepo.FindSingleAsync(t => 
+                        t.BookId == dto.BookId && t.MemberId == dto.MemberId && t.ReturnDate == null && t.Status == "Issued");
+
+                    if (transaction == null)
+                    {
+                        return Results.NotFound("No active tracking transaction record found for this explicit Book-Member pair.");
+                    }
+
+                    // 2. Update transaction metrics to stamp completion
+                    transaction.ReturnDate = DateTime.UtcNow;
+                    transaction.Status = "Returned";
+                    transaction.UpdatedAt = DateTime.UtcNow;
+                    transactionRepo.Update(transaction);
+
+                    // 3. Release the physical inventory book asset back to the wild
+                    var book = await bookRepo.GetByIdAsync(dto.BookId);
+                    if (book != null)
+                    {
+                        book.AvailableQuantity = Math.Min(book.AvailableQuantity + 1, book.TotalQuantity);
+                        if (book.AvailableQuantity > 0) book.AvailabilityStatus = "Available";
+                        book.UpdatedAt = DateTime.UtcNow;
+                        bookRepo.Update(book);
+                    }
+
+                    await transactionRepo.SaveChangesAsync();
+                    await dbTx.CommitAsync();
+
+                    cache.Remove("available_books");
+                    cache.Remove("catalog_books");
+
+                    return Results.Ok(new { Message = "Book returned and inventory updated successfully." });
                 }
-
-                // 2. Update transaction metrics to stamp completion
-                transaction.ReturnDate = DateTime.UtcNow;
-                transaction.Status = "Returned";
-                transaction.UpdatedAt = DateTime.UtcNow;
-                transactionRepo.Update(transaction);
-
-                // 3. Release the physical inventory book asset back to the wild
-                var book = await bookRepo.GetByIdAsync(dto.BookId);
-                if (book != null)
+                catch (DbUpdateConcurrencyException)
                 {
-                    book.AvailableQuantity = Math.Min(book.AvailableQuantity + 1, book.TotalQuantity);
-                    if (book.AvailableQuantity > 0) book.AvailabilityStatus = "Available";
-                    book.UpdatedAt = DateTime.UtcNow;
-                    bookRepo.Update(book);
+                    await dbTx.RollbackAsync();
+                    return Results.Conflict(new { error = "Conflict: The book inventory was modified by another transaction. Please try again." });
                 }
-
-                await transactionRepo.SaveChangesAsync();
-                return Results.Ok(new { Message = "Book returned and inventory updated successfully." });
+                catch (Exception)
+                {
+                    await dbTx.RollbackAsync();
+                    throw;
+                }
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // POST /transactions/borrow - Member self-borrow (Member only)
@@ -123,7 +155,8 @@ namespace backend.Endpoints
                 ClaimsPrincipal userPrincipal,
                 IGenericRepository<Member> memberRepo,
                 IBookRepository bookRepo,
-                IGenericRepository<BookTransaction> transactionRepo) =>
+                IGenericRepository<BookTransaction> transactionRepo,
+                IMemoryCache cache) =>
             {
                 // 1. Resolve logged-in user and linked Member profile
                 var currentUserIdClaim = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -180,7 +213,16 @@ namespace backend.Endpoints
                     await transactionRepo.SaveChangesAsync();
         
                     await dbTx.CommitAsync();
+
+                    cache.Remove("available_books");
+                    cache.Remove("catalog_books");
+
                     return Results.Ok(new { Message = "Book borrowed successfully.", TransactionId = transaction.Id, DueDate = transaction.DueDate });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    await dbTx.RollbackAsync();
+                    return Results.Conflict(new { error = "Conflict: The book inventory was modified by another transaction. Please try again." });
                 }
                 catch (Exception)
                 {
@@ -193,7 +235,9 @@ namespace backend.Endpoints
             group.MapGet("/my-loans/{memberId:int}", async (int memberId, 
                 AppDbContext dbContext,
                 IGenericRepository<Member> memberRepo,
-                ClaimsPrincipal userPrincipal) =>
+                ClaimsPrincipal userPrincipal,
+                [FromQuery] int? page = null,
+                [FromQuery] int? pageSize = null) =>
             {
                 var currentUserIdClaim = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var currentUserRole = userPrincipal.FindFirst(ClaimTypes.Role)?.Value;
@@ -215,13 +259,24 @@ namespace backend.Endpoints
                 }
 
                 // Retrieve all historical circulation lines for the member
-                var loans = await dbContext.BookTransactions
+                var query = dbContext.BookTransactions
                     .AsNoTracking()
                     .Include(t => t.Book)
                     .Where(t => t.MemberId == memberId)
-                    .OrderByDescending(t => t.CreatedAt)
-                    .ToListAsync();
-                return Results.Ok(loans);
+                    .OrderByDescending(t => t.CreatedAt);
+
+                if (page.HasValue && pageSize.HasValue)
+                {
+                    var p = page.Value > 0 ? page.Value : 1;
+                    var ps = pageSize.Value > 0 ? pageSize.Value : 10;
+                    var items = await query.Skip((p - 1) * ps).Take(ps).ToListAsync();
+                    return Results.Ok(items);
+                }
+                else
+                {
+                    var loans = await query.ToListAsync();
+                    return Results.Ok(loans);
+                }
             }).RequireAuthorization();
 
             // GET /transactions - Fetch all library transaction records (Admin Overview Log)
@@ -264,8 +319,10 @@ namespace backend.Endpoints
 
             // POST /transactions/{transactionId}/return - Process a return transaction (Admin only)
             group.MapPost("/{transactionId:int}/return", async (int transactionId, [FromBody] ReturnBookTransactionDto dto,
+                AppDbContext dbContext,
                 IBookRepository bookRepo,
-                IGenericRepository<BookTransaction> transactionRepo) =>
+                IGenericRepository<BookTransaction> transactionRepo,
+                IMemoryCache cache) =>
             {
                 var transaction = await transactionRepo.GetByIdAsync(transactionId);
                 if (transaction == null || transaction.Status != "Issued" || transaction.ReturnDate != null)
@@ -273,24 +330,43 @@ namespace backend.Endpoints
                     return Results.BadRequest("Invalid transaction record or lease is already returned.");
                 }
 
-                var returnDate = dto.ReturnDate ?? DateTime.UtcNow;
-
-                transaction.ReturnDate = returnDate;
-                transaction.Status = "Returned";
-                transaction.UpdatedAt = DateTime.UtcNow;
-                transactionRepo.Update(transaction);
-
-                var book = await bookRepo.GetByIdAsync(transaction.BookId);
-                if (book != null)
+                using var dbTx = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    book.AvailableQuantity = Math.Min(book.AvailableQuantity + 1, book.TotalQuantity);
-                    if (book.AvailableQuantity > 0) book.AvailabilityStatus = "Available";
-                    book.UpdatedAt = DateTime.UtcNow;
-                    bookRepo.Update(book);
-                }
+                    var returnDate = dto.ReturnDate ?? DateTime.UtcNow;
 
-                await transactionRepo.SaveChangesAsync();
-                return Results.Ok(new { Message = "Book returned and inventory updated successfully." });
+                    transaction.ReturnDate = returnDate;
+                    transaction.Status = "Returned";
+                    transaction.UpdatedAt = DateTime.UtcNow;
+                    transactionRepo.Update(transaction);
+
+                    var book = await bookRepo.GetByIdAsync(transaction.BookId);
+                    if (book != null)
+                    {
+                        book.AvailableQuantity = Math.Min(book.AvailableQuantity + 1, book.TotalQuantity);
+                        if (book.AvailableQuantity > 0) book.AvailabilityStatus = "Available";
+                        book.UpdatedAt = DateTime.UtcNow;
+                        bookRepo.Update(book);
+                    }
+
+                    await transactionRepo.SaveChangesAsync();
+                    await dbTx.CommitAsync();
+
+                    cache.Remove("available_books");
+                    cache.Remove("catalog_books");
+
+                    return Results.Ok(new { Message = "Book returned and inventory updated successfully." });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    await dbTx.RollbackAsync();
+                    return Results.Conflict(new { error = "Conflict: The book inventory was modified by another transaction. Please try again." });
+                }
+                catch (Exception)
+                {
+                    await dbTx.RollbackAsync();
+                    throw;
+                }
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // POST /transactions/request - Member submits a borrow request (Pending queue)
@@ -299,7 +375,8 @@ namespace backend.Endpoints
                 ClaimsPrincipal userPrincipal,
                 IGenericRepository<Member> memberRepo,
                 IBookRepository bookRepo,
-                IGenericRepository<BookTransaction> transactionRepo) =>
+                IGenericRepository<BookTransaction> transactionRepo,
+                IMemoryCache cache) =>
             {
                 var currentUserIdClaim = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(currentUserIdClaim) || !int.TryParse(currentUserIdClaim, out var userId))
@@ -361,7 +438,16 @@ namespace backend.Endpoints
                     await transactionRepo.SaveChangesAsync();
         
                     await dbTx.CommitAsync();
+
+                    cache.Remove("available_books");
+                    cache.Remove("catalog_books");
+
                     return Results.Ok(new { Message = "Borrow request submitted. Awaiting admin approval.", TransactionId = transaction.Id });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    await dbTx.RollbackAsync();
+                    return Results.Conflict(new { error = "Conflict: The book inventory was modified by another transaction. Please try again." });
                 }
                 catch (Exception)
                 {
@@ -391,7 +477,8 @@ namespace backend.Endpoints
             group.MapPost("/{id:int}/approve", async (int id,
                 AppDbContext dbContext,
                 IBookRepository bookRepo,
-                IGenericRepository<BookTransaction> transactionRepo) =>
+                IGenericRepository<BookTransaction> transactionRepo,
+                IMemoryCache cache) =>
             {
                 var transaction = await transactionRepo.GetByIdAsync(id);
                 if (transaction == null || transaction.Status != "Pending")
@@ -401,42 +488,81 @@ namespace backend.Endpoints
                 if (book == null)
                     return Results.BadRequest("The requested book does not exist in the catalog.");
     
-                transaction.Status = "Issued";
-                transaction.IssueDate = DateTime.UtcNow;
-                transaction.DueDate = DateTime.UtcNow.AddDays(14);
-                transaction.UpdatedAt = DateTime.UtcNow;
-                transactionRepo.Update(transaction);
-    
-                await transactionRepo.SaveChangesAsync();
-                return Results.Ok(new { Message = "Request approved. Book copy locked for member.", AvailableQuantity = book.AvailableQuantity });
+                using var dbTx = await dbContext.Database.BeginTransactionAsync();
+                try
+                {
+                    transaction.Status = "Issued";
+                    transaction.IssueDate = DateTime.UtcNow;
+                    transaction.DueDate = DateTime.UtcNow.AddDays(14);
+                    transaction.UpdatedAt = DateTime.UtcNow;
+                    transactionRepo.Update(transaction);
+        
+                    await transactionRepo.SaveChangesAsync();
+                    await dbTx.CommitAsync();
+
+                    cache.Remove("available_books");
+                    cache.Remove("catalog_books");
+
+                    return Results.Ok(new { Message = "Request approved. Book copy locked for member.", AvailableQuantity = book.AvailableQuantity });
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    await dbTx.RollbackAsync();
+                    return Results.Conflict(new { error = "Conflict: The database state was modified by another transaction. Please try again." });
+                }
+                catch (Exception)
+                {
+                    await dbTx.RollbackAsync();
+                    throw;
+                }
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // POST /transactions/{id}/reject - Admin rejects a pending request
             group.MapPost("/{id:int}/reject", async (int id,
                 AppDbContext dbContext,
                 IBookRepository bookRepo,
-                IGenericRepository<BookTransaction> transactionRepo) =>
+                IGenericRepository<BookTransaction> transactionRepo,
+                IMemoryCache cache) =>
             {
                 var transaction = await transactionRepo.GetByIdAsync(id);
                 if (transaction == null || transaction.Status != "Pending")
                     return Results.BadRequest("Transaction not found or is not in Pending state.");
     
-                // Reclaim/increment the physical copy back to availability
-                var book = await bookRepo.GetByIdAsync(transaction.BookId);
-                if (book != null)
+                using var dbTx = await dbContext.Database.BeginTransactionAsync();
+                try
                 {
-                    book.AvailableQuantity = Math.Min(book.AvailableQuantity + 1, book.TotalQuantity);
-                    if (book.AvailableQuantity > 0) book.AvailabilityStatus = "Available";
-                    book.UpdatedAt = DateTime.UtcNow;
-                    bookRepo.Update(book);
+                    // Reclaim/increment the physical copy back to availability
+                    var book = await bookRepo.GetByIdAsync(transaction.BookId);
+                    if (book != null)
+                    {
+                        book.AvailableQuantity = Math.Min(book.AvailableQuantity + 1, book.TotalQuantity);
+                        if (book.AvailableQuantity > 0) book.AvailabilityStatus = "Available";
+                        book.UpdatedAt = DateTime.UtcNow;
+                        bookRepo.Update(book);
+                    }
+        
+                    transaction.Status = "Rejected";
+                    transaction.UpdatedAt = DateTime.UtcNow;
+                    transactionRepo.Update(transaction);
+        
+                    await transactionRepo.SaveChangesAsync();
+                    await dbTx.CommitAsync();
+
+                    cache.Remove("available_books");
+                    cache.Remove("catalog_books");
+
+                    return Results.Ok(new { Message = "Request rejected successfully." });
                 }
-    
-                transaction.Status = "Rejected";
-                transaction.UpdatedAt = DateTime.UtcNow;
-                transactionRepo.Update(transaction);
-    
-                await transactionRepo.SaveChangesAsync();
-                return Results.Ok(new { Message = "Request rejected successfully." });
+                catch (DbUpdateConcurrencyException)
+                {
+                    await dbTx.RollbackAsync();
+                    return Results.Conflict(new { error = "Conflict: The database state was modified by another transaction. Please try again." });
+                }
+                catch (Exception)
+                {
+                    await dbTx.RollbackAsync();
+                    throw;
+                }
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
         }
     }

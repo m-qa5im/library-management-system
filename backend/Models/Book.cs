@@ -36,6 +36,7 @@ namespace backend.Models
         [Column("total_quantity")]
         public int TotalQuantity { get; set; } = 1;
 
+        [ConcurrencyCheck]
         [Column("available_quantity")]
         public int AvailableQuantity { get; set; } = 1;
 

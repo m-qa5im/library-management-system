@@ -76,6 +76,17 @@ export default function MemberDashboard() {
     setFilterQuery(searchQuery.trim());
   };
 
+  // Real-time search debouncing (300ms window)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setFilterQuery(searchQuery.trim());
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
   // ─── REQUEST BORROW HANDLER ───
   const handleRequestBorrow = async (bookId) => {
     try {

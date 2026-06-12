@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using backend.DTOs;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace backend.Endpoints
 {
@@ -15,22 +16,34 @@ namespace backend.Endpoints
             var group = app.MapGroup("/books");
 
             // GET /api/books/available - Fetch current reading stock (Public)
-            group.MapGet("/available", async (IBookRepository bookRepo) =>
+            group.MapGet("/available", async (IBookRepository bookRepo, IMemoryCache cache) =>
             {
-                var availableBooks = await bookRepo.GetAvailableBooksAsync();
+                if (!cache.TryGetValue("available_books", out IEnumerable<Book>? availableBooks))
+                {
+                    availableBooks = await bookRepo.GetAvailableBooksAsync();
+                    var cacheEntryOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(10));
+                    cache.Set("available_books", availableBooks, cacheEntryOptions);
+                }
                 return Results.Ok(availableBooks);
             });
 
             // GET /books/catalog - Fetch all active books in the library catalog (Authenticated users)
-            group.MapGet("/catalog", async (IBookRepository bookRepo) =>
+            group.MapGet("/catalog", async (IBookRepository bookRepo, IMemoryCache cache) =>
             {
-                var allBooks = await bookRepo.GetAllAsync();
-                var activeBooks = allBooks.Where(b => b.IsActive);
+                if (!cache.TryGetValue("catalog_books", out IEnumerable<Book>? activeBooks))
+                {
+                    var allBooks = await bookRepo.GetAllAsync();
+                    activeBooks = allBooks.Where(b => b.IsActive);
+                    var cacheEntryOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(10));
+                    cache.Set("catalog_books", activeBooks, cacheEntryOptions);
+                }
                 return Results.Ok(activeBooks);
             }).RequireAuthorization();
 
             // POST /api/books - Add a new asset to the catalog (Admin only)
-            group.MapPost("/", async ([FromBody] BookCreateDto dto, IBookRepository bookRepo) =>
+            group.MapPost("/", async ([FromBody] BookCreateDto dto, IBookRepository bookRepo, IMemoryCache cache) =>
             {
                 // Basic business logic validation
                 if (string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Author))
@@ -77,6 +90,9 @@ namespace backend.Endpoints
                 await bookRepo.AddAsync(newBook);
                 await bookRepo.SaveChangesAsync();
 
+                cache.Remove("available_books");
+                cache.Remove("catalog_books");
+
                 return Results.Created($"/books/{newBook.Id}", newBook);
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
@@ -88,7 +104,7 @@ namespace backend.Endpoints
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // DELETE /books/{id} - Remove or soft-delete a literary asset from the inventory database (Admin only)
-            group.MapDelete("/{id:int}", async (int id, IBookRepository bookRepo) =>
+            group.MapDelete("/{id:int}", async (int id, IBookRepository bookRepo, IMemoryCache cache) =>
             {
                 var targetBook = await bookRepo.GetByIdAsync(id);
                 if (targetBook == null)
@@ -99,11 +115,14 @@ namespace backend.Endpoints
                 bookRepo.Delete(targetBook);
                 await bookRepo.SaveChangesAsync();
 
+                cache.Remove("available_books");
+                cache.Remove("catalog_books");
+
                 return Results.Ok(new { Message = $"Book asset {id} was successfully purged from the catalog system database." });
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // PUT /books/{id} - Modify existing book specifications (Admin only)
-            group.MapPut("/{id:int}", async (int id, [FromBody] BookUpdateDto dto, IBookRepository bookRepo) =>
+            group.MapPut("/{id:int}", async (int id, [FromBody] BookUpdateDto dto, IBookRepository bookRepo, IMemoryCache cache) =>
             {
                 var book = await bookRepo.GetByIdAsync(id);
                 if (book == null)
@@ -155,6 +174,9 @@ namespace backend.Endpoints
                 book.UpdatedAt = DateTime.UtcNow;
                 bookRepo.Update(book);
                 await bookRepo.SaveChangesAsync();
+
+                cache.Remove("available_books");
+                cache.Remove("catalog_books");
 
                 return Results.Ok(new { Message = "Book catalog item modified successfully.", UpdatedBook = book });
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });

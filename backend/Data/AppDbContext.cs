@@ -16,6 +16,12 @@ namespace backend.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Configure database performance indexes
+            modelBuilder.Entity<Book>().HasIndex(b => b.Isbn);
+            modelBuilder.Entity<Member>().HasIndex(m => m.MemberCode);
+            modelBuilder.Entity<BookTransaction>().HasIndex(t => t.BookId);
+            modelBuilder.Entity<BookTransaction>().HasIndex(t => t.MemberId);
+
             // Enforce explicit mapping constraints via Fluent API
             
             // 1. Configure 1:0..1 Relationship (Users <-> Members)

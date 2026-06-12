@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace backend.Models
 {
@@ -22,6 +23,7 @@ namespace backend.Models
 
         [Required]
         [MaxLength(255)]
+        [JsonIgnore]
         [Column("password_hash")]
         public string PasswordHash { get; set; } = string.Empty;
 
