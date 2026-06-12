@@ -8,25 +8,19 @@ import {
   getBooks,
   getMembers,
   getUsers,
-  createBook,
-  createMember,
-  issueBook,
-  returnBook,
-  registerAndCreateMember,
-  registerUser,
-  searchMembers,
-  searchBooks,
-  searchActiveTransactions,
-  returnTransaction,
   getPendingRequests,
 } from '../services/adminService';
 import BookInventoryPanel from '../components/BookInventoryPanel';
 import MemberInventoryPanel from '../components/MemberInventoryPanel';
 import TransactionPanel from '../components/TransactionPanel';
-import AutocompleteLookup from '../components/AutocompleteLookup';
 import AccountSettingsPanel from '../components/AccountSettingsPanel';
 import CirculationQueuePanel from '../components/CirculationQueuePanel';
 import AnalyticsPanel from '../components/AnalyticsPanel';
+import AddBookModal from '../components/AddBookModal';
+import AddMemberModal from '../components/AddMemberModal';
+import IssueBookModal from '../components/IssueBookModal';
+import ReturnBookModal from '../components/ReturnBookModal';
+import { CardSkeleton, TableSkeleton } from '../components/SkeletonLoader';
 import {
   CloseIcon,
   DashboardIcon,
@@ -67,6 +61,7 @@ export default function Dashboard() {
   const toast = useToast();
   const token = authUser?.token;
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // ─── CORE DASHBOARD DATA STATE ───
   const [stats, setStats] = useState({
@@ -113,69 +108,6 @@ export default function Dashboard() {
 
   // ─── MODAL CONTROLS ───
   const [activeModal, setActiveModal] = useState(null); // 'add-book' | 'add-member' | 'issue-book' | 'return-book' | null
-  const [submitting, setSubmitting] = useState(false);
-
-  // ─── MODAL FORM STATES ───
-  // Add Book Form
-  const [bookForm, setBookForm] = useState({
-    title: '',
-    author: '',
-    category: 'General',
-    description: '',
-    coverImageUrl: '',
-    isbn: '',
-    totalQuantity: 1,
-  });
-
-  // Add Member Form
-  const [memberTab, setMemberTab] = useState('register'); // 'link' | 'register'
-  const [memberForm, setMemberForm] = useState({
-    userId: '',
-    memberCode: '',
-    fullName: '',
-    email: '',
-    password: '',
-  });
-
-  // Issue Book Form (search suggestions helper)
-  const [issueForm, setIssueForm] = useState({
-    bookSearch: '',
-    bookId: '',
-    memberSearch: '',
-    memberId: '',
-  });
-  const [bookSuggestions, setBookSuggestions] = useState([]);
-  const [memberSuggestions, setMemberSuggestions] = useState([]);
-
-  // Return Book Form
-  const [returnForm, setReturnForm] = useState({
-    selectedTransactionId: '', // Select active transaction record directly
-  });
-
-  // ─── NEW WIZARD MODAL STATES ───
-  const [issueStep, setIssueStep] = useState(1);
-  const [issueMember, setIssueMember] = useState(null);
-  const [issueBookObj, setIssueBookObj] = useState(null);
-  const [issueDate, setIssueDate] = useState('');
-  const [issueDueDate, setIssueDueDate] = useState('');
-
-  const [returnStep, setReturnStep] = useState(1);
-  const [returnTransactionObj, setReturnTransactionObj] = useState(null);
-  const [returnDate, setReturnDate] = useState('');
-
-  // ─── WIZARD FORM RESET & INITIALIZATION ───
-  useEffect(() => {
-    if (activeModal === 'issue-book') {
-      setIssueStep(1);
-      setIssueMember(null);
-      setIssueBookObj(null);
-      setIssueDate(getTodayString());
-      setIssueDueDate(getTodayString(14));
-    } else if (activeModal === 'return-book') {
-      setReturnStep(1);
-      setReturnTransactionObj(null);
-    }
-  }, [activeModal]);
 
   // Click outside to close profile dropdown menu
   useEffect(() => {
@@ -282,274 +214,6 @@ export default function Dashboard() {
   // ─── MODAL CLOSING HELPER ───
   const closeModal = () => {
     setActiveModal(null);
-    setSubmitting(false);
-    // Reset Forms
-    setBookForm({ title: '', author: '', category: 'General', description: '', coverImageUrl: '', isbn: '', totalQuantity: 1 });
-    setMemberForm({ userId: '', memberCode: '', fullName: '', email: '', password: '', role: 'Member' });
-    setIssueForm({ bookSearch: '', bookId: '', memberSearch: '', memberId: '' });
-    setReturnForm({ selectedTransactionId: '' });
-    setBookSuggestions([]);
-    setMemberSuggestions([]);
-
-    // Reset wizard states
-    setIssueStep(1);
-    setIssueMember(null);
-    setIssueBookObj(null);
-    setIssueDate('');
-    setIssueDueDate('');
-    setReturnStep(1);
-    setReturnTransactionObj(null);
-    setReturnDate('');
-  };
-
-  // Automatically generate cover image URL when entering isbn in Add Book Form
-  useEffect(() => {
-    if (bookForm.isbn && bookForm.isbn.trim()) {
-      const sanitized = bookForm.isbn.replace(/[- ]/g, "").trim();
-      if (sanitized.length === 10 || sanitized.length === 13) {
-        setBookForm(prev => {
-          if (!prev.coverImageUrl || prev.coverImageUrl.includes('covers.openlibrary.org/b/isbn/')) {
-            return {
-              ...prev,
-              coverImageUrl: `https://covers.openlibrary.org/b/isbn/${sanitized}-L.jpg?default=false`
-            };
-          }
-          return prev;
-        });
-      }
-    }
-  }, [bookForm.isbn]);
-
-  // ─── AUTO-SUGGEST FILTERING FOR ISSUE BOOK ───
-  useEffect(() => {
-    if (!issueForm.bookSearch.trim()) {
-      setBookSuggestions([]);
-      return;
-    }
-    const filtered = books.filter(
-      (b) =>
-        b.availabilityStatus === 'Available' &&
-        b.isActive &&
-        (b.title.toLowerCase().includes(issueForm.bookSearch.toLowerCase()) ||
-          b.author.toLowerCase().includes(issueForm.bookSearch.toLowerCase()))
-    );
-    setBookSuggestions(filtered.slice(0, 5));
-  }, [issueForm.bookSearch, books]);
-
-  useEffect(() => {
-    if (!issueForm.memberSearch.trim()) {
-      setMemberSuggestions([]);
-      return;
-    }
-    const filtered = members.filter(
-      (m) =>
-        m.status === 'Active' &&
-        (m.memberCode.toLowerCase().includes(issueForm.memberSearch.toLowerCase()) ||
-          (m.user?.fullName || '').toLowerCase().includes(issueForm.memberSearch.toLowerCase()))
-    );
-    setMemberSuggestions(filtered.slice(0, 5));
-  }, [issueForm.memberSearch, members]);
-
-  // ─── SUBMIT HANDLERS ───
-  const handleAddBookSubmit = async (e) => {
-    e.preventDefault();
-    if (!bookForm.title.trim() || !bookForm.author.trim()) {
-      toast.error('Title and Author fields are strictly mandatory.');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      await createBook(bookForm, token);
-      toast.success('Book asset added successfully to inventory!');
-      closeModal();
-      loadBooksData(true);
-      loadDashboardStatsAndTransactions(true);
-    } catch (err) {
-      toast.error(err.message || 'Failed to add book asset.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleAddMemberSubmit = async (e) => {
-    e.preventDefault();
-
-    if (memberTab === 'link') {
-      if (!memberForm.memberCode.trim()) {
-        toast.error('Member Code is required.');
-        return;
-      }
-
-      try {
-        setSubmitting(true);
-
-        if (!memberForm.userId) {
-          toast.error('Please select a User account to link.');
-          setSubmitting(false);
-          return;
-        }
-        await createMember(
-          {
-            userId: parseInt(memberForm.userId, 10),
-            memberCode: memberForm.memberCode.trim(),
-          },
-          token
-        );
-        toast.success('Member profile established successfully.');
-        closeModal();
-        loadMembersAndUsersData(true);
-        loadDashboardStatsAndTransactions(true);
-      } catch (err) {
-        toast.error(err.message || 'Failed to establish member profile.');
-      } finally {
-        setSubmitting(false);
-      }
-    } else {
-      // Register Tab - hardcoded to 'Member' role for security
-      if (!memberForm.fullName.trim() || !memberForm.email.trim() || !memberForm.password.trim()) {
-        toast.error('All user fields are required to register.');
-        return;
-      }
-
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(memberForm.email.trim())) {
-        toast.error('Invalid email address format.');
-        return;
-      }
-
-      if (memberForm.password.length < 8) {
-        toast.error('Password must contain at least 8 characters.');
-        return;
-      }
-
-      if (!/[A-Z]/.test(memberForm.password)) {
-        toast.error('Password must contain at least one uppercase letter.');
-        return;
-      }
-
-      if (!/[a-z]/.test(memberForm.password)) {
-        toast.error('Password must contain at least one lowercase letter.');
-        return;
-      }
-
-      if (!/[0-9]/.test(memberForm.password)) {
-        toast.error('Password must contain at least one numeric digit.');
-        return;
-      }
-
-      // Automatically mint a unique member code
-      const uniqueCode = `MEM-${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
-
-      try {
-        setSubmitting(true);
-
-        await registerAndCreateMember(
-          {
-            fullName: memberForm.fullName.trim(),
-            email: memberForm.email.trim(),
-            password: memberForm.password,
-            role: 'Member', // hardcoded role
-          },
-          uniqueCode,
-          token
-        );
-        toast.success('Member profile registered and established successfully!');
-        closeModal();
-        loadMembersAndUsersData(true);
-        loadDashboardStatsAndTransactions(true);
-      } catch (err) {
-        toast.error(err.message || 'Failed to register account.');
-      } finally {
-        setSubmitting(false);
-      }
-    }
-  };
-
-  const handleIssueBookSubmit = async (e) => {
-    e.preventDefault();
-    if (issueStep < 3) {
-      if (issueStep === 1 && issueMember) {
-        setIssueStep(2);
-      } else if (issueStep === 2 && issueBookObj) {
-        setIssueStep(3);
-      }
-      return;
-    }
-
-    if (!issueMember || !issueBookObj) {
-      toast.error('Please select a valid Member and Book.');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      await issueBook(
-        {
-          bookId: issueBookObj.id,
-          memberId: issueMember.id,
-          issueDate: issueDate ? new Date(issueDate + "T12:00:00").toISOString() : undefined,
-          dueDate: issueDueDate ? new Date(issueDueDate + "T12:00:00").toISOString() : undefined,
-        },
-        token
-      );
-      toast.success('Book asset issued successfully!');
-      closeModal();
-      loadDashboardStatsAndTransactions(true);
-      loadBooksData(true);
-      loadMembersAndUsersData(true);
-    } catch (err) {
-      toast.error(err.message || 'Failed to loan selected asset.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleReturnBookSubmit = async (e) => {
-    e.preventDefault();
-    if (returnStep < 2) {
-      if (returnStep === 1 && returnTransactionObj) {
-        setReturnStep(2);
-      }
-      return;
-    }
-
-    if (!returnTransactionObj) {
-      toast.error('Please select an active checkout record to complete the return.');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      await returnTransaction(
-        returnTransactionObj.id,
-        {
-          returnDate: returnDate ? new Date(returnDate + "T12:00:00").toISOString() : undefined,
-        },
-        token
-      );
-      toast.success('Circulation register updated. Asset returned successfully!');
-      closeModal();
-      loadDashboardStatsAndTransactions(true);
-      loadBooksData(true);
-      loadMembersAndUsersData(true);
-    } catch (err) {
-      toast.error(err.message || 'Failed to complete book return transaction.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleIssueDateChange = (newDateVal) => {
-    setIssueDate(newDateVal);
-    if (newDateVal) {
-      const d = new Date(newDateVal + "T12:00:00");
-      d.setDate(d.getDate() + 14);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      setIssueDueDate(`${year}-${month}-${day}`);
-    }
   };
 
   // ─── FILTER RECENT TRANSACTIONS TABLE ───
@@ -568,12 +232,6 @@ export default function Dashboard() {
   const activeTransactions = useMemo(() => {
     return transactions.filter((t) => t.returnDate === null && t.status === 'Issued');
   }, [transactions]);
-
-  // Filter out users who are already linked to a member profile (for select list in dual modal)
-  const unlinkedUsers = useMemo(() => {
-    const linkedUserIds = members.map((m) => m.userId);
-    return users.filter((u) => u.role === 'Member' && !linkedUserIds.includes(u.id));
-  }, [users, members]);
 
   // Dynamic formatting of date string helper
   const formatDateString = (dateStr) => {
@@ -600,15 +258,35 @@ export default function Dashboard() {
       )}
 
       {/* ─── SIDEBAR NAVIGATION ─── */}
-      <aside className={`db-sidebar ${sidebarOpen ? 'db-sidebar-open' : ''}`}>
+      <aside className={`db-sidebar ${sidebarOpen ? 'db-sidebar-open' : ''} ${sidebarCollapsed ? 'db-sidebar-collapsed' : ''}`}>
         <div className="db-sidebar-top">
           <div className="db-brand-row">
-            <div className="db-brand">
-              <h1 className="db-brand-title">Library Admin</h1>
-              <p className="db-brand-subtitle">Management Portal</p>
-            </div>
-            <button 
-              className="db-sidebar-close-btn" 
+            {!sidebarCollapsed ? (
+              <div className="db-brand animate-fade-in-up">
+                <h1 className="db-brand-title">Library Admin</h1>
+                <p className="db-brand-subtitle">Management Portal</p>
+              </div>
+            ) : (
+              <div className="db-brand-collapsed-logo animate-fade-in-up" style={{ color: '#00288e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <BookOpenIcon className="w-6 h-6" />
+              </div>
+            )}
+            <button
+              className="db-sidebar-toggle-btn desktop-only"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRightIcon style={{ width: '12px', height: '12px' }} />
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '12px', height: '12px' }}>
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              )}
+            </button>
+            <button
+              className="db-sidebar-close-btn mobile-only"
               onClick={() => setSidebarOpen(false)}
               aria-label="Close sidebar"
             >
@@ -623,9 +301,10 @@ export default function Dashboard() {
                 loadDashboardStatsAndTransactions(true);
                 setSidebarOpen(false);
               }}
+              title={sidebarCollapsed ? "Dashboard" : undefined}
             >
               <DashboardIcon className="db-nav-icon" />
-              <span>Dashboard</span>
+              {!sidebarCollapsed && <span>Dashboard</span>}
             </div>
             <div
               className={`db-nav-item ${activeView === 'analytics' ? 'db-nav-item-active' : ''}`}
@@ -633,13 +312,14 @@ export default function Dashboard() {
                 setActiveView('analytics');
                 setSidebarOpen(false);
               }}
+              title={sidebarCollapsed ? "Analytics" : undefined}
             >
               <svg className="db-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '18px', height: '18px' }}>
                 <line x1="18" y1="20" x2="18" y2="10" />
                 <line x1="12" y1="20" x2="12" y2="4" />
                 <line x1="6" y1="20" x2="6" y2="14" />
               </svg>
-              <span>Analytics</span>
+              {!sidebarCollapsed && <span>Analytics</span>}
             </div>
             <div
               className={`db-nav-item ${activeView === 'books' ? 'db-nav-item-active' : ''}`}
@@ -648,9 +328,10 @@ export default function Dashboard() {
                 loadBooksData(true);
                 setSidebarOpen(false);
               }}
+              title={sidebarCollapsed ? "Books" : undefined}
             >
               <BookIcon className="db-nav-icon" />
-              <span>Books</span>
+              {!sidebarCollapsed && <span>Books</span>}
             </div>
             <div
               className={`db-nav-item ${activeView === 'members' ? 'db-nav-item-active' : ''}`}
@@ -659,9 +340,10 @@ export default function Dashboard() {
                 loadMembersAndUsersData(true);
                 setSidebarOpen(false);
               }}
+              title={sidebarCollapsed ? "Members" : undefined}
             >
               <MemberIcon className="db-nav-icon" />
-              <span>Members</span>
+              {!sidebarCollapsed && <span>Members</span>}
             </div>
             <div
               className={`db-nav-item ${activeView === 'transactions' ? 'db-nav-item-active' : ''}`}
@@ -670,9 +352,10 @@ export default function Dashboard() {
                 loadDashboardStatsAndTransactions(true);
                 setSidebarOpen(false);
               }}
+              title={sidebarCollapsed ? "Transactions" : undefined}
             >
               <TransactionIcon className="db-nav-icon" />
-              <span>Transactions</span>
+              {!sidebarCollapsed && <span>Transactions</span>}
             </div>
             <div
               className={`db-nav-item ${activeView === 'requests' ? 'db-nav-item-active' : ''}`}
@@ -680,33 +363,46 @@ export default function Dashboard() {
                 setActiveView('requests');
                 setSidebarOpen(false);
               }}
+              title={sidebarCollapsed ? "Borrow Requests" : undefined}
             >
-              <ClockIcon className="db-nav-icon" />
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <span>Borrow Requests</span>
-                {pendingCount > 0 && (
-                  <span className="db-sidebar-badge">
-                    {pendingCount}
+              {sidebarCollapsed ? (
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ClockIcon className="db-nav-icon" />
+                  {pendingCount > 0 && (
+                    <span className="db-sidebar-badge-mini">
+                      {pendingCount}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <ClockIcon className="db-nav-icon" />
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span>Borrow Requests</span>
+                    {pendingCount > 0 && (
+                      <span className="db-sidebar-badge">
+                        {pendingCount}
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
+                </>
+              )}
             </div>
           </nav>
         </div>
         <div className="db-sidebar-bottom">
-          <button className="db-logout-btn" onClick={handleLogout} aria-label="Logout button">
-            <LogoutIcon className="db-nav-icon" />
-            <span>Logout</span>
+          <button className="db-logout-btn" onClick={handleLogout} aria-label="Logout button" title={sidebarCollapsed ? "Logout" : undefined}>
+            <LogoutIcon className="db-nav-icon" />{!sidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
       {/* ─── MAIN CONTENT BODY AREA ─── */}
-      <main className="db-main">
+      <main className={`db-main ${sidebarCollapsed ? 'db-main-collapsed' : ''}`}>
         {/* HEADER PANEL */}
         <header className="db-header">
-          <button 
-            className="db-hamburger-btn" 
+          <button
+            className="db-hamburger-btn"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open navigation menu"
           >
@@ -716,16 +412,16 @@ export default function Dashboard() {
             {activeView === 'books'
               ? 'Book Inventory'
               : activeView === 'members'
-              ? 'Member Directory'
-              : activeView === 'transactions'
-              ? 'Transactions Ledger'
-              : activeView === 'requests'
-              ? 'Circulation Request Queue'
-              : activeView === 'settings'
-              ? 'Account Settings'
-              : activeView === 'analytics'
-              ? 'System Analytics & KPIs'
-              : 'Admin Dashboard'}
+                ? 'Member Directory'
+                : activeView === 'transactions'
+                  ? 'Transactions Ledger'
+                  : activeView === 'requests'
+                    ? 'Circulation Request Queue'
+                    : activeView === 'settings'
+                      ? 'Account Settings'
+                      : activeView === 'analytics'
+                        ? 'System Analytics & KPIs'
+                        : 'Admin Dashboard'}
           </h2>
           <div className="db-header-controls">
             <div className="db-avatar-wrapper" ref={dropdownRef}>
@@ -779,55 +475,64 @@ export default function Dashboard() {
         {activeView === 'dashboard' && (
           <div className="db-body">
             {/* STATS METRIC CARDS */}
-            <section className="db-stats-grid" aria-label="Library metrics">
-              <div className="db-stat-card">
-                <div className="db-stat-icon-container books">
-                  <BookOpenIcon className="db-stat-icon" />
+            {loading ? (
+              <section className="db-stats-grid" aria-label="Library metrics loading">
+                <CardSkeleton />
+                <CardSkeleton />
+                <CardSkeleton />
+                <CardSkeleton />
+              </section>
+            ) : (
+              <section className="db-stats-grid" aria-label="Library metrics">
+                <div className="db-stat-card">
+                  <div className="db-stat-icon-container books">
+                    <BookOpenIcon className="db-stat-icon" />
+                  </div>
+                  <div className="db-stat-info">
+                    <span className="db-stat-label">Total Books</span>
+                    <span className="db-stat-value">
+                      {stats.totalBooks.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
-                <div className="db-stat-info">
-                  <span className="db-stat-label">Total Books</span>
-                  <span className="db-stat-value">
-                    {loading ? '...' : stats.totalBooks.toLocaleString()}
-                  </span>
-                </div>
-              </div>
 
-              <div className="db-stat-card">
-                <div className="db-stat-icon-container members">
-                  <PeopleIcon className="db-stat-icon" />
+                <div className="db-stat-card">
+                  <div className="db-stat-icon-container members">
+                    <PeopleIcon className="db-stat-icon" />
+                  </div>
+                  <div className="db-stat-info">
+                    <span className="db-stat-label">Total Members</span>
+                    <span className="db-stat-value">
+                      {stats.totalMembers.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
-                <div className="db-stat-info">
-                  <span className="db-stat-label">Total Members</span>
-                  <span className="db-stat-value">
-                    {loading ? '...' : stats.totalMembers.toLocaleString()}
-                  </span>
-                </div>
-              </div>
 
-              <div className="db-stat-card">
-                <div className="db-stat-icon-container borrowed">
-                  <ExportIcon className="db-stat-icon" />
+                <div className="db-stat-card">
+                  <div className="db-stat-icon-container borrowed">
+                    <ExportIcon className="db-stat-icon" />
+                  </div>
+                  <div className="db-stat-info">
+                    <span className="db-stat-label">Borrowed Books</span>
+                    <span className="db-stat-value">
+                      {stats.borrowedBooks.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
-                <div className="db-stat-info">
-                  <span className="db-stat-label">Borrowed Books</span>
-                  <span className="db-stat-value">
-                    {loading ? '...' : stats.borrowedBooks.toLocaleString()}
-                  </span>
-                </div>
-              </div>
 
-              <div className="db-stat-card">
-                <div className="db-stat-icon-container available">
-                  <CheckCircleIcon className="db-stat-icon" />
+                <div className="db-stat-card">
+                  <div className="db-stat-icon-container available">
+                    <CheckCircleIcon className="db-stat-icon" />
+                  </div>
+                  <div className="db-stat-info">
+                    <span className="db-stat-label">Available Books</span>
+                    <span className="db-stat-value">
+                      {stats.availableBooks.toLocaleString()}
+                    </span>
+                  </div>
                 </div>
-                <div className="db-stat-info">
-                  <span className="db-stat-label">Available Books</span>
-                  <span className="db-stat-value">
-                    {loading ? '...' : stats.availableBooks.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* TWO COLUMNS WRAPPER */}
             <div className="db-grid-main">
@@ -856,7 +561,7 @@ export default function Dashboard() {
 
                 <div className="db-table-wrapper">
                   {loading ? (
-                    <div className="db-table-empty">Loading transaction records...</div>
+                    <TableSkeleton cols={5} rows={5} />
                   ) : filteredTransactions.length === 0 ? (
                     <div className="db-table-empty">No transaction logs match search parameters.</div>
                   ) : (
@@ -881,23 +586,22 @@ export default function Dashboard() {
                               <td>{formatDateString(tx.dueDate)}</td>
                               <td>
                                 <span
-                                  className={`badge ${
-                                    calculatedStatus === 'Returned'
+                                  className={`badge ${calculatedStatus === 'Returned'
                                       ? 'returned'
                                       : calculatedStatus === 'Overdue'
-                                      ? 'overdue'
-                                      : calculatedStatus === 'Pending'
-                                      ? 'pending'
-                                      : calculatedStatus === 'Rejected'
-                                      ? 'rejected'
-                                      : 'on-time'
-                                  }`}
+                                        ? 'overdue'
+                                        : calculatedStatus === 'Pending'
+                                          ? 'pending'
+                                          : calculatedStatus === 'Rejected'
+                                            ? 'rejected'
+                                            : 'on-time'
+                                    }`}
                                   style={
                                     calculatedStatus === 'Pending'
                                       ? { backgroundColor: '#fef3c7', color: '#d97706', borderColor: '#fde68a' }
                                       : calculatedStatus === 'Rejected'
-                                      ? { backgroundColor: '#fdf2f8', color: '#db2777', borderColor: '#fbcfe8' }
-                                      : {}
+                                        ? { backgroundColor: '#fdf2f8', color: '#db2777', borderColor: '#fbcfe8' }
+                                        : {}
                                   }
                                 >
                                   {calculatedStatus}
@@ -984,8 +688,8 @@ export default function Dashboard() {
                     Operational Status
                   </h4>
                   <p className="db-status-desc">
-                    {syncError 
-                      ? 'Connection offline or failed to fetch database updates.' 
+                    {syncError
+                      ? 'Connection offline or failed to fetch database updates.'
                       : `System is operational. Database synced at ${lastSync ? lastSync.toLocaleTimeString() : '—'}.`
                     }
                   </p>
@@ -1062,555 +766,47 @@ export default function Dashboard() {
       </main>
 
       {/* ─── MODAL DIALOGS FOR QUICK ACTIONS ─── */}
+      <AddBookModal
+        isOpen={activeModal === 'add-book'}
+        onClose={closeModal}
+        token={token}
+        onSuccess={() => {
+          loadBooksData(true);
+          loadDashboardStatsAndTransactions(true);
+        }}
+      />
 
-      {/* 1. ADD BOOK MODAL */}
-      {activeModal === 'add-book' && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Add New Book Asset</h3>
-              <button className="modal-close-btn" onClick={closeModal} aria-label="Close modal">
-                <CloseIcon />
-              </button>
-            </div>
-            <form onSubmit={handleAddBookSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label htmlFor="modal-book-title">Book Title *</label>
-                  <input
-                    id="modal-book-title"
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. The Great Gatsby"
-                    value={bookForm.title}
-                    onChange={(e) => setBookForm((prev) => ({ ...prev, title: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+      <AddMemberModal
+        isOpen={activeModal === 'add-member'}
+        onClose={closeModal}
+        token={token}
+        onSuccess={() => {
+          loadMembersAndUsersData(true);
+          loadDashboardStatsAndTransactions(true);
+        }}
+      />
 
-                <div className="form-group">
-                  <label htmlFor="modal-book-author">Author *</label>
-                  <input
-                    id="modal-book-author"
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. F. Scott Fitzgerald"
-                    value={bookForm.author}
-                    onChange={(e) => setBookForm((prev) => ({ ...prev, author: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+      <IssueBookModal
+        isOpen={activeModal === 'issue-book'}
+        onClose={closeModal}
+        token={token}
+        onSuccess={() => {
+          loadDashboardStatsAndTransactions(true);
+          loadBooksData(true);
+          loadMembersAndUsersData(true);
+        }}
+      />
 
-                <div className="form-group">
-                  <label htmlFor="modal-book-category">Category</label>
-                  <select
-                    id="modal-book-category"
-                    className="form-select"
-                    value={bookForm.category}
-                    onChange={(e) => setBookForm((prev) => ({ ...prev, category: e.target.value }))}
-                    disabled={submitting}
-                  >
-                    <option value="General">General</option>
-                    <option value="Fiction">Fiction</option>
-                    <option value="Non-Fiction">Non-Fiction</option>
-                    <option value="Science & Tech">Science & Tech</option>
-                    <option value="History">History</option>
-                    <option value="Biography">Biography</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="modal-book-isbn">ISBN (10 or 13 Alphanumeric chars)</label>
-                  <input
-                    id="modal-book-isbn"
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. 0747532699"
-                    value={bookForm.isbn}
-                    onChange={(e) => setBookForm((prev) => ({ ...prev, isbn: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="modal-book-quantity">Total Quantity *</label>
-                  <input
-                    id="modal-book-quantity"
-                    type="number"
-                    min="1"
-                    className="form-input"
-                    value={bookForm.totalQuantity}
-                    onChange={(e) => setBookForm((prev) => ({ ...prev, totalQuantity: parseInt(e.target.value, 10) || 1 }))}
-                    disabled={submitting}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="modal-book-cover">Cover Image URL (Optional)</label>
-                  <input
-                    id="modal-book-cover"
-                    type="url"
-                    className="form-input"
-                    placeholder="e.g. https://covers.openlibrary.org/b/id/8259841-L.jpg"
-                    value={bookForm.coverImageUrl}
-                    onChange={(e) => setBookForm((prev) => ({ ...prev, coverImageUrl: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="modal-book-desc">Description (Optional)</label>
-                  <textarea
-                    id="modal-book-desc"
-                    className="form-input form-textarea"
-                    placeholder="Brief description of the literary asset..."
-                    value={bookForm.description}
-                    onChange={(e) => setBookForm((prev) => ({ ...prev, description: e.target.value }))}
-                    disabled={submitting}
-                  ></textarea>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="db-action-btn-secondary" onClick={closeModal} disabled={submitting}>
-                  Cancel
-                </button>
-                <button type="submit" className="db-action-btn-primary" disabled={submitting}>
-                  {submitting ? 'Adding...' : 'Add Asset'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 2. ADD MEMBER MODAL */}
-      {activeModal === 'add-member' && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Establish Member Profile</h3>
-              <button className="modal-close-btn" onClick={closeModal} aria-label="Close modal">
-                <CloseIcon />
-              </button>
-            </div>
-            <form onSubmit={handleAddMemberSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label htmlFor="modal-member-name">Full Name *</label>
-                  <input
-                    id="modal-member-name"
-                    type="text"
-                    className="form-input"
-                    placeholder="John Doe"
-                    value={memberForm.fullName}
-                    onChange={(e) => setMemberForm((prev) => ({ ...prev, fullName: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="modal-member-email">Email Address *</label>
-                  <input
-                    id="modal-member-email"
-                    type="email"
-                    className="form-input"
-                    placeholder="john.doe@example.com"
-                    value={memberForm.email}
-                    onChange={(e) => setMemberForm((prev) => ({ ...prev, email: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="modal-member-pass">Password (Min 8 chars, 1 Upper, 1 Lower, 1 Num) *</label>
-                  <input
-                    id="modal-member-pass"
-                    type="password"
-                    className="form-input"
-                    placeholder="••••••••"
-                    value={memberForm.password}
-                    onChange={(e) => setMemberForm((prev) => ({ ...prev, password: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="db-action-btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }} onClick={closeModal} disabled={submitting}>
-                  Cancel
-                </button>
-                <button type="submit" className="db-action-btn-primary" style={{ padding: '8px 16px', fontSize: '0.875rem' }} disabled={submitting}>
-                  {submitting ? 'Creating...' : 'Register Profile'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 3. ISSUE BOOK MODAL */}
-      {activeModal === 'issue-book' && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Circulation: Loan Asset</h3>
-              <button className="modal-close-btn" onClick={closeModal} aria-label="Close modal">
-                <CloseIcon />
-              </button>
-            </div>
-            
-            {/* Step indicator */}
-            <div className="px-6 pt-4">
-              <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-100">
-                <div className="flex gap-2">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold text-xs transition-colors duration-200 ${issueStep === 1 ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-500'}`}>1</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold text-xs transition-colors duration-200 ${issueStep === 2 ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-500'}`}>2</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold text-xs transition-colors duration-200 ${issueStep === 3 ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-500'}`}>3</span>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Step {issueStep} of 3</span>
-              </div>
-            </div>
-
-            <form onSubmit={handleIssueBookSubmit}>
-              {issueStep === 1 && (
-                <div className="modal-body min-h-[300px]">
-                  <div className="form-group mb-4">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Search Member Account *</label>
-                    <AutocompleteLookup
-                      id="issue-member-lookup"
-                      fetchCallback={(query, page, pageSize) => searchMembers(query, page, pageSize, token)}
-                      placeholder="Type member name, email, or library card ID..."
-                      onSelect={(item) => setIssueMember(item)}
-                      getLabel={(item) => item ? `${item.user?.fullName} (${item.memberCode})` : ''}
-                      formatItem={(item) => (
-                        <div className="flex flex-col text-left">
-                          <span className="font-semibold text-slate-800">{item.user?.fullName}</span>
-                          <span className="text-xs text-slate-500">Email: {item.user?.email} | Code: {item.memberCode}</span>
-                        </div>
-                      )}
-                      initialLabel={issueMember ? `${issueMember.user?.fullName} (${issueMember.memberCode})` : ''}
-                    />
-                  </div>
-
-                  {issueMember && (
-                    <div className="mt-6 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100/60 text-left flex flex-col gap-2">
-                      <div className="flex justify-between items-center">
-                        <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Selected Member Profile</h4>
-                        <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          {issueMember.status}
-                        </span>
-                      </div>
-                      <div className="text-sm text-slate-700 flex flex-col gap-1 mt-1">
-                        <p><strong>Name:</strong> {issueMember.user?.fullName}</p>
-                        <p><strong>Email:</strong> {issueMember.user?.email}</p>
-                        <p><strong>Member Code:</strong> {issueMember.memberCode}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {issueStep === 2 && (
-                <div className="modal-body min-h-[300px]">
-                  <div className="form-group mb-4">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Search Available Book *</label>
-                    <AutocompleteLookup
-                      id="issue-book-lookup"
-                      fetchCallback={(query, page, pageSize) => searchBooks(query, 'Available', page, pageSize, token)}
-                      placeholder="Type book title, author, or ISBN..."
-                      onSelect={(item) => setIssueBookObj(item)}
-                      getLabel={(item) => item ? `${item.title} - ${item.author}` : ''}
-                      formatItem={(item) => (
-                        <div className="flex flex-col text-left">
-                          <span className="font-semibold text-slate-800">{item.title}</span>
-                          <span className="text-xs text-slate-500">Author: {item.author} | Category: {item.category} | ISBN: {item.isbn || 'N/A'}</span>
-                        </div>
-                      )}
-                      initialLabel={issueBookObj ? `${issueBookObj.title} - ${issueBookObj.author}` : ''}
-                    />
-                  </div>
-
-                  {issueBookObj && (
-                    <div className="mt-6 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100/60 text-left flex gap-4 items-start">
-                      {issueBookObj.coverImageUrl && (
-                        <img
-                          src={issueBookObj.coverImageUrl}
-                          alt={issueBookObj.title}
-                          className="w-16 h-20 object-cover rounded-lg shadow-sm border border-slate-200"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=100&auto=format&fit=crop';
-                          }}
-                        />
-                      )}
-                      <div className="text-sm text-slate-700 flex-1 flex flex-col gap-1">
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Selected Book Asset</h4>
-                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                            Available
-                          </span>
-                        </div>
-                        <p className="mt-1 font-semibold text-slate-900">{issueBookObj.title}</p>
-                        <p><strong>Author:</strong> {issueBookObj.author}</p>
-                        <p><strong>ISBN:</strong> {issueBookObj.isbn || 'N/A'}</p>
-                        <p><strong>Category:</strong> {issueBookObj.category}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {issueStep === 3 && (
-                <div className="modal-body text-left">
-                  <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-                      <strong className="text-slate-500 block mb-1 text-[10px] uppercase tracking-wider font-bold">Selected Member</strong>
-                      <span className="text-slate-800 font-semibold text-sm">{issueMember?.user?.fullName}</span>
-                      <span className="text-slate-500 block mt-0.5">{issueMember?.memberCode}</span>
-                    </div>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-                      <strong className="text-slate-500 block mb-1 text-[10px] uppercase tracking-wider font-bold">Selected Book</strong>
-                      <span className="text-slate-800 font-semibold text-sm truncate block">{issueBookObj?.title}</span>
-                      <span className="text-slate-500 block mt-0.5">by {issueBookObj?.author}</span>
-                    </div>
-                  </div>
-
-                  <div className="form-group mb-4">
-                    <label htmlFor="issue-date-input" className="block text-sm font-semibold text-slate-700 mb-2">Custom Issue Date *</label>
-                    <input
-                      id="issue-date-input"
-                      type="date"
-                      className="form-input"
-                      value={issueDate}
-                      onChange={(e) => handleIssueDateChange(e.target.value)}
-                      disabled={submitting}
-                    />
-                  </div>
-
-                  <div className="form-group mb-6">
-                    <label htmlFor="due-date-input" className="block text-sm font-semibold text-slate-700 mb-2">Custom Due Date *</label>
-                    <input
-                      id="due-date-input"
-                      type="date"
-                      className="form-input"
-                      value={issueDueDate}
-                      onChange={(e) => setIssueDueDate(e.target.value)}
-                      disabled={submitting}
-                    />
-                    <small style={{ color: '#757684', marginTop: '4px', display: 'block' }}>
-                      Defaults automatically to 14 days following the designated issue date.
-                    </small>
-                  </div>
-                </div>
-              )}
-
-              <div className="modal-footer">
-                {issueStep > 1 ? (
-                  <button
-                    key="issue-back-btn"
-                    type="button"
-                    className="db-action-btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    onClick={() => setIssueStep((prev) => prev - 1)}
-                    disabled={submitting}
-                  >
-                    Back
-                  </button>
-                ) : (
-                  <button
-                    key="issue-cancel-btn"
-                    type="button"
-                    className="db-action-btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    onClick={closeModal}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </button>
-                )}
-
-                {issueStep < 3 ? (
-                  <button
-                    key="issue-next-btn"
-                    type="button"
-                    className="db-action-btn-primary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    onClick={() => setIssueStep((prev) => prev + 1)}
-                    disabled={(issueStep === 1 && !issueMember) || (issueStep === 2 && !issueBookObj)}
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    key="issue-submit-btn"
-                    type="submit"
-                    className="db-action-btn-primary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    disabled={submitting || !issueMember || !issueBookObj || !issueDate || !issueDueDate}
-                  >
-                    {submitting ? 'Processing...' : 'Issue Asset'}
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 4. RETURN BOOK MODAL */}
-      {activeModal === 'return-book' && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Circulation: Return Asset</h3>
-              <button className="modal-close-btn" onClick={closeModal} aria-label="Close modal">
-                <CloseIcon />
-              </button>
-            </div>
-
-            {/* Step indicator */}
-            <div className="px-6 pt-4">
-              <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-100">
-                <div className="flex gap-2">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold text-xs transition-colors duration-200 ${returnStep === 1 ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-500'}`}>1</span>
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center font-semibold text-xs transition-colors duration-200 ${returnStep === 2 ? 'bg-indigo-600 text-white shadow' : 'bg-slate-100 text-slate-500'}`}>2</span>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Step {returnStep} of 2</span>
-              </div>
-            </div>
-
-            <form onSubmit={handleReturnBookSubmit}>
-              {returnStep === 1 && (
-                <div className="modal-body min-h-[300px]">
-                  <div className="form-group mb-4">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Search Active Loans *</label>
-                    <AutocompleteLookup
-                      id="return-loan-lookup"
-                      fetchCallback={(query, page, pageSize) => searchActiveTransactions(query, page, pageSize, token)}
-                      placeholder="Search by book title, borrower name, email, or code..."
-                      onSelect={(item) => setReturnTransactionObj(item)}
-                      getLabel={(item) => item ? `"${item.book?.title}" borrowed by ${item.member?.user?.fullName || item.member?.memberCode}` : ''}
-                      formatItem={(item) => (
-                        <div className="flex flex-col text-left">
-                          <span className="font-semibold text-slate-800">"{item.book?.title}"</span>
-                          <span className="text-xs text-slate-500">Borrowed by: {item.member?.user?.fullName} ({item.member?.memberCode})</span>
-                          <span className="text-xs text-slate-400">Issued: {formatDateString(item.issueDate)} | Due: {formatDateString(item.dueDate)}</span>
-                        </div>
-                      )}
-                      initialLabel={returnTransactionObj ? `"${returnTransactionObj.book?.title}" borrowed by ${returnTransactionObj.member?.user?.fullName}` : ''}
-                    />
-                  </div>
-
-                  {returnTransactionObj && (
-                    <div className="mt-6 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100/60 text-left flex flex-col gap-3">
-                      <div className="flex justify-between items-center">
-                        <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Active Loan Details</h4>
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getTransactionStatus(returnTransactionObj) === 'Overdue' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
-                          {getTransactionStatus(returnTransactionObj)}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm text-slate-700 mt-1">
-                        <div>
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Book Title</p>
-                          <p className="font-semibold text-slate-800 truncate">{returnTransactionObj.book?.title}</p>
-                          <p className="text-xs text-slate-500">by {returnTransactionObj.book?.author}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Borrower</p>
-                          <p className="font-semibold text-slate-800">{returnTransactionObj.member?.user?.fullName}</p>
-                          <p className="text-xs text-slate-500">Code: {returnTransactionObj.member?.memberCode}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Issue Date</p>
-                          <p className="font-semibold text-slate-800">{formatDateString(returnTransactionObj.issueDate)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Due Date</p>
-                          <p className="font-semibold text-slate-800">{formatDateString(returnTransactionObj.dueDate)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {returnStep === 2 && (
-                <div className="modal-body text-left">
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 mb-6 text-sm text-slate-700">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Loan Verification</h4>
-                    <p className="mb-1"><strong>Book:</strong> {returnTransactionObj?.book?.title}</p>
-                    <p className="mb-1"><strong>Borrower:</strong> {returnTransactionObj?.member?.user?.fullName} ({returnTransactionObj?.member?.memberCode})</p>
-                    <p><strong>Original Due Date:</strong> {formatDateString(returnTransactionObj?.dueDate)}</p>
-                  </div>
-
-                  <div className="form-group mb-6">
-                    <label htmlFor="return-date-input" className="block text-sm font-semibold text-slate-700 mb-2">Custom Return Date *</label>
-                    <input
-                      id="return-date-input"
-                      type="date"
-                      className="form-input"
-                      value={returnDate}
-                      onChange={(e) => setReturnDate(e.target.value)}
-                      disabled={submitting}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="modal-footer">
-                {returnStep > 1 ? (
-                  <button
-                    key="return-back-btn"
-                    type="button"
-                    className="db-action-btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    onClick={() => setReturnStep((prev) => prev - 1)}
-                    disabled={submitting}
-                  >
-                    Back
-                  </button>
-                ) : (
-                  <button
-                    key="return-cancel-btn"
-                    type="button"
-                    className="db-action-btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    onClick={closeModal}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </button>
-                )}
-
-                {returnStep < 2 ? (
-                  <button
-                    key="return-next-btn"
-                    type="button"
-                    className="db-action-btn-primary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    onClick={() => setReturnStep((prev) => prev + 2 - returnStep)}
-                    disabled={!returnTransactionObj}
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    key="return-submit-btn"
-                    type="submit"
-                    className="db-action-btn-primary"
-                    style={{ padding: '8px 16px', fontSize: '0.875rem' }}
-                    disabled={submitting || !returnTransactionObj || !returnDate}
-                  >
-                    {submitting ? 'Processing...' : 'Settle Return'}
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-
+      <ReturnBookModal
+        isOpen={activeModal === 'return-book'}
+        onClose={closeModal}
+        token={token}
+        onSuccess={() => {
+          loadDashboardStatsAndTransactions(true);
+          loadBooksData(true);
+          loadMembersAndUsersData(true);
+        }}
+      />
     </div>
   );
 }
