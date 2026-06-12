@@ -1,5 +1,6 @@
 using backend.Interfaces;
 using backend.Models;
+using backend.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -439,11 +440,4 @@ namespace backend.Endpoints
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
         }
     }
-
-    // Modular Data Transfer Object Contracts
-    public record IssueBookDto(int BookId, int MemberId, DateTime? IssueDate, DateTime? DueDate);
-    public record ReturnBookDto(int BookId, int MemberId);
-    public record ReturnBookTransactionDto(DateTime? ReturnDate);
-    public record BorrowBookDto(int BookId);
-    public record RequestBorrowDto(int BookId);
 }

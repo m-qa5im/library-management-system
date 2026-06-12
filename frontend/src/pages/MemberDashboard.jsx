@@ -292,7 +292,7 @@ export default function MemberDashboard() {
           <>
             <section className="mdb-section-header" aria-label="Catalog header">
               <div className="mdb-section-title-wrapper">
-                <h2 className="mdb-section-title">Premium Catalog</h2>
+                <h2 className="mdb-section-title">Library Catalog</h2>
                 <p className="mdb-section-desc">
                   Showing {filteredAndSortedBooks.length} active titles
                 </p>
@@ -367,12 +367,6 @@ export default function MemberDashboard() {
                     <article key={book.id} className="mdb-card">
                       {/* Cover Image Wrapper */}
                       <div className="mdb-card-cover-wrapper">
-                        {/* Status absolute pill */}
-                        <span className={`mdb-badge ${badgeClass}`}>
-                          <span className="mdb-badge-dot" />
-                          <span>{badgeText}</span>
-                        </span>
-
                         <ImageWithFallback
                           src={getCoverImageUrl(book)}
                           alt={book.title}
@@ -389,6 +383,12 @@ export default function MemberDashboard() {
                           <p className="mdb-card-author" title={book.author}>
                             Author: {book.author}
                           </p>
+                          <div className="mdb-availability-wrapper">
+                            <span className={`mdb-availability-chip ${badgeClass}`}>
+                              <span className="mdb-badge-dot" />
+                              <span>{badgeText}</span>
+                            </span>
+                          </div>
                         </div>
 
                         <div className="mdb-card-actions">

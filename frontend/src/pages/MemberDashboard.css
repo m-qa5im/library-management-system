@@ -4,15 +4,16 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #faf8ff;
+  background-color: #f8fafc; /* light blue-gray background */
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
 }
 
 /* ─── HEADER NAVIGATION ─── */
 .mdb-header {
   background-color: #ffffff;
-  border-bottom: 1px solid #e2e7ff;
-  height: 70px;
+  border-bottom: 1px solid #e2e8f0;
+  height: 64px; /* fixed 64px height */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -37,13 +38,15 @@
 }
 
 .mdb-logo-text {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
 .mdb-nav {
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  align-self: stretch;
+  height: 100%;
   gap: 32px;
 }
 
@@ -52,12 +55,16 @@
   font-weight: 500;
   color: #505f76;
   text-decoration: none;
-  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
   border-bottom: 2px solid transparent;
   transition: all 0.2s ease;
   cursor: pointer;
   background: none;
-  border: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
 }
 
 .mdb-nav-link:hover {
@@ -67,7 +74,7 @@
 .mdb-nav-link-active {
   color: #00288e;
   font-weight: 600;
-  border-bottom-color: #00288e;
+  border-bottom: 2px solid #00288e; /* deep blue active indicator */
 }
 
 .mdb-logout-btn {
@@ -77,7 +84,9 @@
   cursor: pointer;
   font-size: 0.925rem;
   font-weight: 500;
-  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
   transition: opacity 0.2s ease;
 }
 
@@ -87,55 +96,55 @@
 
 /* ─── HERO HEADER ─── */
 .mdb-hero {
-  background-color: #f7f9ff;
-  border-bottom: 1px solid #e2e7ff;
-  padding: 48px 24px 64px 24px;
+  background: radial-gradient(circle at 50% 50%, #f1f5f9 0%, #f8fafc 100%);
+  border-bottom: 1px solid #e2e8f0;
+  padding: 40px 24px 48px 24px; /* reduced height */
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .mdb-hero-title {
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   font-weight: 800;
-  color: #131b2e;
+  color: #0f172a;
   margin: 0;
   letter-spacing: -0.02em;
 }
 
 .mdb-hero-subtitle {
-  font-size: 1.1rem;
-  color: #505f76;
-  max-width: 680px;
+  font-size: 1rem;
+  color: #475569;
+  max-width: 640px;
   margin: 0 auto;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .mdb-search-bar {
   display: flex;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 6px 8px 6px 24px;
-  width: 580px;
-  max-width: 90%;
-  box-shadow: var(--shadow-level-1);
-  margin-top: 12px;
+  border-radius: 9999px; /* rounded pill shape */
+  padding: 4px 6px 4px 20px;
+  width: 640px; /* wider search bar */
+  max-width: 95%;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  margin-top: 16px;
   align-items: center;
-  transition: var(--transition-default);
+  transition: all 150ms ease;
 }
 
 .mdb-search-bar:focus-within {
   border-color: #00288e;
-  box-shadow: 0 0 0 3px rgba(0, 40, 142, 0.12);
+  box-shadow: 0 0 0 4px rgba(0, 40, 142, 0.1);
 }
 
 .mdb-search-icon {
   width: 20px;
   height: 20px;
-  color: #757684;
+  color: #64748b;
   margin-right: 12px;
   flex-shrink: 0;
 }
@@ -145,41 +154,38 @@
   border: none;
   outline: none;
   font-size: 0.95rem;
-  color: #131b2e;
+  color: #0f172a;
   background: transparent;
 }
 
 .mdb-search-input::placeholder {
-  color: #a3a3c2;
+  color: #94a3b8;
 }
 
 .mdb-search-btn {
   background-color: #00288e;
   color: #ffffff;
   border: none;
-  padding: 10px 28px;
-  border-radius: 999px;
+  padding: 10px 32px;
+  border-radius: 9999px;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  box-shadow: var(--shadow-level-1);
-  transition: var(--transition-default);
+  transition: all 150ms ease;
 }
 
 .mdb-search-btn:hover {
   background-color: #001f70;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-level-2);
 }
 
 /* ─── CATALOG SECTION ─── */
 .mdb-content {
   flex: 1;
-  padding: 48px;
+  padding: 40px 24px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  max-width: 1400px;
+  gap: 24px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
 }
@@ -188,59 +194,58 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .mdb-section-title-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .mdb-section-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #131b2e;
+  color: #0f172a;
   margin: 0;
 }
 
 .mdb-section-desc {
-  font-size: 0.85rem;
-  color: #757684;
+  font-size: 0.875rem;
+  color: #64748b;
   margin: 0;
 }
 
 .mdb-actions-row {
   display: flex;
-  gap: 12px;
-}
-
-.mdb-filter-btn {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 16px;
+}
+
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
   background-color: #ffffff;
-  border: 1px solid #c4c5d5;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
+  padding: 8px 36px 8px 12px;
   font-size: 0.875rem;
-  color: #505f76;
-  font-weight: 500;
+  color: #0f172a;
+  min-width: 140px;
+  height: 38px;
+  outline: none;
   cursor: pointer;
-  transition: var(--transition-default);
-  box-shadow: var(--shadow-level-1);
+  transition: all 150ms ease;
 }
 
-.mdb-filter-btn:hover {
+.form-select:focus {
   border-color: #00288e;
-  color: #00288e;
-  background-color: #f7f9ff;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-level-2);
-}
-
-.mdb-filter-icon {
-  width: 16px;
-  height: 16px;
+  box-shadow: 0 0 0 3px rgba(0, 40, 142, 0.08);
 }
 
 /* ─── DISCOVERY GRID ─── */
@@ -252,38 +257,45 @@
 
 .mdb-card {
   background-color: #ffffff;
-  border: 1px solid #e2e7ff;
-  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow-level-1);
-  transition: var(--transition-default);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  position: relative;
+  height: 100%;
 }
 
 .mdb-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-level-2);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.08);
 }
 
 .mdb-card-cover-wrapper {
-  aspect-ratio: 3/4; /* Correct portrait aspect ratio for books */
+  height: 240px; /* fixed height area */
   width: 100%;
   position: relative;
-  background-color: #eaedff;
+  background-color: #f8fafc; /* light neutral background */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .mdb-card-cover {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain; /* prevent cropping */
   transition: transform 0.3s ease;
+  padding: 16px;
 }
 
 .mdb-card:hover .mdb-card-cover {
-  transform: scale(1.03);
+  transform: scale(1.02);
 }
 
 /* default book image fallback */
@@ -293,8 +305,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eaedff 0%, #d2d9f4 100%);
-  color: #00288e;
+  background-color: #f8fafc;
+  color: #64748b;
 }
 
 .mdb-card-cover-placeholder-icon {
@@ -302,35 +314,34 @@
   height: 48px;
 }
 
-/* availability badge absolute overlays */
-.mdb-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.725rem;
-  font-weight: 700;
+/* availability chips */
+.mdb-availability-wrapper {
+  margin-top: 6px;
+}
+
+.mdb-availability-chip {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.775rem;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  box-shadow: var(--shadow-level-1);
-  z-index: 10;
 }
 
-.mdb-badge.available {
-  background-color: rgba(21, 128, 61, 0.1);
-  color: #15803d;
+.mdb-availability-chip.available {
+  background-color: #f0fdf4; /* light green background */
+  color: #166534; /* dark green text */
 }
 
-.mdb-badge.borrowed {
-  background-color: rgba(190, 18, 60, 0.1);
-  color: #be123c;
+.mdb-availability-chip.borrowed {
+  background-color: #fef2f2;
+  color: #991b1b;
 }
 
-.mdb-badge.low-stock {
-  background-color: rgba(217, 119, 6, 0.1);
-  color: #d97706;
+.mdb-availability-chip.low-stock {
+  background-color: #fffbeb;
+  color: #92400e;
 }
 
 .mdb-badge-dot {
@@ -352,24 +363,26 @@
 .mdb-card-meta {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .mdb-card-title {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
-  color: #131b2e;
+  color: #0f172a;
   margin: 0;
   line-height: 1.4;
-  /* limit to 1 lines */
-  white-space: nowrap;
+  height: 2.8em; /* fixed height for two lines of text */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .mdb-card-author {
-  font-size: 0.825rem;
-  color: #505f76;
+  font-size: 0.875rem;
+  color: #64748b;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -385,93 +398,132 @@
 /* card action buttons */
 .mdb-btn {
   width: 100%;
-  height: 40px;
+  height: 38px;
   padding: 0 16px;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: var(--transition-default);
+  transition: all 150ms ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   text-decoration: none;
-  box-shadow: var(--shadow-level-1);
+  box-shadow: none;
+  border: none;
 }
 
 .mdb-btn-primary {
-  background-color: #00288e;
+  background-color: #00288e; /* deep blue background */
   color: #ffffff;
-  border: 1px solid #00288e;
 }
 
 .mdb-btn-primary:hover:not(:disabled) {
   background-color: #001f70;
-  border-color: #001f70;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-level-2);
 }
 
 .mdb-btn-secondary {
-  background-color: #f2f3ff;
+  background-color: #ffffff;
   color: #00288e;
-  border: 1px solid transparent;
+  border: 1px solid #cbd5e1; /* subtle border style */
 }
 
 .mdb-btn-secondary:hover:not(:disabled) {
-  background-color: #eaedff;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-level-2);
+  background-color: #f8fafc;
+  border-color: #b4c6ef;
 }
 
 .mdb-btn:disabled {
-  background-color: var(--color-surface-container-low);
-  color: var(--color-outline);
-  border-color: transparent;
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
   cursor: not-allowed;
 }
 
 .mdb-btn-pending {
-  background-color: #fef3c7;
+  background-color: #fffbeb;
   color: #d97706;
   border: 1px solid #fde68a;
   cursor: default;
-  box-shadow: none;
 }
 
 .mdb-btn-pending:hover {
-  background-color: #fef3c7 !important;
+  background-color: #fffbeb !important;
   transform: none !important;
-  box-shadow: none !important;
 }
 
 .mdb-btn-out-of-stock {
-  background-color: var(--color-surface-container-low);
-  color: var(--color-outline);
-  border: 1px solid var(--color-outline-variant);
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .mdb-btn-out-of-stock:hover {
-  background-color: var(--color-surface-container-low) !important;
+  background-color: #f1f5f9 !important;
   transform: none !important;
-  box-shadow: none !important;
 }
 
-/* Pagination styles moved globally to index.css */
+/* ─── PAGINATION STYLES ─── */
+.mdb-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+}
+
+.mdb-page-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%; /* circular buttons */
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.mdb-page-btn:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #00288e;
+  color: #00288e;
+}
+
+.mdb-page-btn-active {
+  background-color: #00288e; /* active page deep blue */
+  color: #ffffff;
+  border-color: #00288e;
+  font-weight: 600;
+}
+
+.mdb-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mdb-page-dots {
+  color: #64748b;
+  font-size: 0.875rem;
+  padding: 0 4px;
+}
 
 /* ─── FOOTER ─── */
 .mdb-footer {
   background-color: #ffffff;
-  border-top: 1px solid #e2e7ff;
-  padding: 32px 48px;
+  border-top: 1px solid #e2e8f0;
+  padding: 24px 48px;
   margin-top: 64px;
 }
 
 .mdb-footer-content {
-  max-width: 1400px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   display: flex;
@@ -488,14 +540,14 @@
 }
 
 .mdb-footer-brand {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #131b2e;
+  color: #0f172a;
 }
 
 .mdb-footer-copy {
-  font-size: 0.8rem;
-  color: #757684;
+  font-size: 0.775rem;
+  color: #64748b;
 }
 
 .mdb-footer-right {
@@ -504,10 +556,10 @@
 }
 
 .mdb-footer-link {
-  font-size: 0.8rem;
-  color: #757684;
+  font-size: 0.775rem;
+  color: #64748b;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 150ms ease;
 }
 
 .mdb-footer-link:hover {
@@ -518,7 +570,7 @@
 .mdb-empty-state {
   text-align: center;
   padding: 64px 24px;
-  color: #757684;
+  color: #64748b;
 }
 
 .mdb-empty-icon {
@@ -535,7 +587,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(19, 27, 46, 0.55);
+  background-color: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -557,7 +609,7 @@
 .modal-close-btn {
   background: none;
   border: none;
-  color: #757684;
+  color: #64748b;
   cursor: pointer;
   padding: 6px;
   border-radius: 50%;
@@ -568,8 +620,8 @@
 }
 
 .modal-close-btn:hover {
-  background-color: #f2f3ff;
-  color: #131b2e;
+  background-color: #f1f5f9;
+  color: #0f172a;
 }
 
 .mdb-detail-modal-content {
@@ -577,7 +629,7 @@
   border-radius: 16px;
   width: 760px;
   max-width: 95%;
-  box-shadow: var(--shadow-level-3);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   animation: fadeInUp 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
   position: relative;
@@ -606,8 +658,8 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-  border: 1px solid #e2e7ff;
-  background-color: #eaedff;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
 }
 
 .mdb-detail-modal-cover {
@@ -631,14 +683,14 @@
 .mdb-detail-modal-title {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #131b2e;
+  color: #0f172a;
   margin: 0;
   line-height: 1.3;
 }
 
 .mdb-detail-modal-author {
   font-size: 1rem;
-  color: #505f76;
+  color: #475569;
   margin: 0;
   font-weight: 500;
 }
@@ -650,7 +702,7 @@
   border-radius: 16px;
   font-size: 0.775rem;
   font-weight: 600;
-  background-color: #f2f3ff;
+  background-color: #f1f5f9;
   color: #00288e;
   align-self: flex-start;
 }
@@ -658,13 +710,13 @@
 .mdb-detail-synopsis-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #131b2e;
+  color: #0f172a;
   margin: 0 0 8px 0;
 }
 
 .mdb-detail-synopsis-desc {
   font-size: 0.9rem;
-  color: #444653;
+  color: #334155;
   margin: 0;
   line-height: 1.6;
 }
@@ -673,10 +725,10 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  background-color: #f7f9ff;
+  background-color: #f8fafc;
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid #e2e7ff;
+  border: 1px solid #e2e8f0;
 }
 
 .mdb-detail-info-item {
@@ -686,9 +738,9 @@
 }
 
 .mdb-detail-info-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #757684;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   line-height: 1.2;
@@ -697,16 +749,16 @@
 .mdb-detail-info-value {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #131b2e;
+  color: #0f172a;
 }
 
 /* ─── MY LOANS LISTING ─── */
 .mdb-loans-table-card {
   background-color: #ffffff;
-  border: 1px solid #e2e7ff;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: var(--shadow-level-1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
 .mdb-loans-header {
@@ -716,21 +768,18 @@
 .mdb-loans-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #131b2e;
+  color: #0f172a;
   margin: 0;
 }
 
 /* Responsive Styles */
 @media (max-width: 1024px) {
   .mdb-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .mdb-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .mdb-header {
     padding: 0 20px;
   }
@@ -766,6 +815,9 @@
 }
 
 @media (max-width: 640px) {
+  .mdb-grid {
+    grid-template-columns: 1fr;
+  }
   .mdb-section-header {
     flex-direction: column;
     align-items: flex-start;
@@ -792,39 +844,30 @@
     width: 100%;
     justify-content: center;
     gap: 20px;
+    height: auto;
   }
-  .mdb-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+  .mdb-nav-link {
+    height: 36px;
+    padding: 4px 0;
   }
   .mdb-content {
     padding: 16px;
   }
   .mdb-card-body {
-    padding: 12px;
-    gap: 10px;
+    padding: 16px;
+    gap: 12px;
   }
   .mdb-card-title {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
   }
   .mdb-card-author {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
   .mdb-btn {
     height: 36px;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     padding: 0 8px;
     border-radius: 8px;
-  }
-  .mdb-badge {
-    top: 8px;
-    right: 8px;
-    padding: 2px 6px;
-    font-size: 0.65rem;
-  }
-  .mdb-badge-dot {
-    width: 4px;
-    height: 4px;
   }
 }
 
@@ -834,32 +877,5 @@
   }
   .mdb-logo-text {
     display: none;
-  }
-}
-
-@media (max-width: 380px) {
-  .mdb-grid {
-    gap: 8px;
-  }
-  .mdb-card-body {
-    padding: 8px;
-    gap: 8px;
-  }
-  .mdb-card-title {
-    font-size: 0.8rem;
-  }
-  .mdb-card-author {
-    font-size: 0.7rem;
-  }
-  .mdb-btn {
-    height: 32px;
-    font-size: 0.7rem;
-    padding: 0 4px;
-  }
-  .mdb-badge {
-    top: 6px;
-    right: 6px;
-    padding: 1px 4px;
-    font-size: 0.6rem;
   }
 }
