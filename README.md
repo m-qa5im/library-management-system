@@ -88,7 +88,7 @@ library-management-system/
 1. Open [backend/appsettings.json](file:///c:/Users/Qasim/Desktop/library-management-system/backend/appsettings.json) and configure the `DefaultConnection` string with your PostgreSQL instance credentials:
    ```json
    "ConnectionStrings": {
-     "DefaultConnection": "Host=localhost;Port=5432;Database=LMS;Username=postgres;Password=YOUR_PASSWORD;"
+     "DefaultConnection": "Host=localhost;Port=5432;Database=LMS_Mock;Username=postgres;Password=YOUR_MOCK_PASSWORD;"
    }
    ```
 2. Apply database migrations to generate database tables:
