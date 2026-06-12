@@ -34,7 +34,7 @@ namespace backend.Endpoints
                 if (!cache.TryGetValue("catalog_books", out IEnumerable<Book>? activeBooks))
                 {
                     var allBooks = await bookRepo.GetAllAsync();
-                    activeBooks = allBooks.Where(b => b.IsActive);
+                    activeBooks = allBooks.Where(b => b.IsActive).ToList();
                     var cacheEntryOptions = new MemoryCacheEntryOptions()
                         .SetSlidingExpiration(TimeSpan.FromMinutes(10));
                     cache.Set("catalog_books", activeBooks, cacheEntryOptions);
@@ -73,10 +73,35 @@ namespace backend.Endpoints
 
                 if (!string.IsNullOrWhiteSpace(sanitizedIsbn))
                 {
-                    var existingBook = await bookRepo.FindSingleAsync(b => b.Isbn == sanitizedIsbn);
+                    var existingBook = await bookRepo.FindSingleAsync(b => b.IsActive && b.Isbn == sanitizedIsbn);
                     if (existingBook != null)
                     {
                         return Results.BadRequest("A book with this ISBN already exists in the catalog.");
+                    }
+
+                    // Reactivate previously soft-deleted book if matching ISBN is found
+                    var softDeletedBook = await bookRepo.FindSingleAsync(b => !b.IsActive && b.Isbn == sanitizedIsbn);
+                    if (softDeletedBook != null)
+                    {
+                        var restoreQty = dto.TotalQuantity.HasValue && dto.TotalQuantity.Value > 0 ? dto.TotalQuantity.Value : 1;
+                        softDeletedBook.IsActive = true;
+                        softDeletedBook.Title = dto.Title;
+                        softDeletedBook.Author = dto.Author;
+                        softDeletedBook.Category = dto.Category;
+                        softDeletedBook.Description = dto.Description;
+                        softDeletedBook.CoverImageUrl = coverUrl;
+                        softDeletedBook.TotalQuantity = restoreQty;
+                        softDeletedBook.AvailableQuantity = restoreQty;
+                        softDeletedBook.AvailabilityStatus = "Available";
+                        softDeletedBook.UpdatedAt = DateTime.UtcNow;
+
+                        bookRepo.Update(softDeletedBook);
+                        await bookRepo.SaveChangesAsync();
+
+                        cache.Remove("available_books");
+                        cache.Remove("catalog_books");
+
+                        return Results.Created($"/books/{softDeletedBook.Id}", softDeletedBook);
                     }
                 }
 
@@ -109,26 +134,43 @@ namespace backend.Endpoints
             group.MapGet("/", async (IBookRepository bookRepo) =>
             {
                 var allBooks = await bookRepo.GetAllAsync();
-                return Results.Ok(allBooks);
+                var activeBooks = allBooks.Where(b => b.IsActive);
+                return Results.Ok(activeBooks);
             }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             // DELETE /books/{id} - Remove or soft-delete a literary asset from the inventory database (Admin only)
             group.MapDelete("/{id:int}", async (int id, IBookRepository bookRepo, AppDbContext dbContext, IMemoryCache cache) =>
             {
                 var targetBook = await bookRepo.GetByIdAsync(id);
-                if (targetBook == null)
+                if (targetBook == null || !targetBook.IsActive)
                 {
                     return Results.NotFound($"No book asset found corresponding to ID: {id}");
                 }
 
-                // Check if book has any associated transactions before deleting
-                var hasTransactions = await dbContext.BookTransactions.AnyAsync(t => t.BookId == id);
-                if (hasTransactions)
+                // Check if book has any active transactions (Issued or Pending)
+                var hasActiveTransactions = await dbContext.BookTransactions.AnyAsync(t => 
+                    t.BookId == id && (t.Status == "Issued" || t.Status == "Pending"));
+                
+                if (hasActiveTransactions)
                 {
-                    return Results.BadRequest("Cannot delete book. Ensure it has no active loans or transaction logs associated with it.");
+                    return Results.BadRequest("Cannot delete book. Ensure it has no active loans or pending borrow requests.");
                 }
 
-                bookRepo.Delete(targetBook);
+                // Check if book has any historical transaction logs (Returned or Rejected)
+                var hasHistory = await dbContext.BookTransactions.AnyAsync(t => t.BookId == id);
+                if (hasHistory)
+                {
+                    // Soft delete because of database restrict foreign key constraint on transactions
+                    targetBook.IsActive = false;
+                    targetBook.UpdatedAt = DateTime.UtcNow;
+                    bookRepo.Update(targetBook);
+                }
+                else
+                {
+                    // Hard delete if it has absolutely no transaction history
+                    bookRepo.Delete(targetBook);
+                }
+
                 await bookRepo.SaveChangesAsync();
 
                 cache.Remove("available_books");
@@ -141,7 +183,7 @@ namespace backend.Endpoints
             group.MapPut("/{id:int}", async (int id, [FromBody] BookUpdateDto dto, IBookRepository bookRepo, IMemoryCache cache) =>
             {
                 var book = await bookRepo.GetByIdAsync(id);
-                if (book == null)
+                if (book == null || !book.IsActive)
                 {
                     return Results.NotFound($"No book catalog record found matching ID: {id}");
                 }
@@ -176,7 +218,7 @@ namespace backend.Endpoints
                         var bookWithIsbn = await bookRepo.FindSingleAsync(b => b.Isbn == sanitizedIsbn && b.Id != id);
                         if (bookWithIsbn != null)
                         {
-                            return Results.BadRequest("Another book with this ISBN already exists in the catalog.");
+                            return Results.BadRequest("Another book with this ISBN already exists in the database.");
                         }
                         book.Isbn = sanitizedIsbn;
                     }

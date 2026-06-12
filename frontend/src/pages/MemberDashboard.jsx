@@ -537,11 +537,11 @@ export default function MemberDashboard() {
                       return (
                         <tr key={loan.id}>
                           <td style={{ width: '80px', padding: '12px 24px' }}>
-                            <div style={{ width: '48px', height: '64px', borderRadius: '4px', overflow: 'hidden', border: '1px solid #e2e7ff' }}>
+                            <div style={{ width: '48px', height: '64px', borderRadius: '4px', overflow: 'hidden', border: '1px solid #e2e7ff', backgroundColor: '#f2f3ff' }}>
                               <ImageWithFallback
                                 src={getCoverImageUrl(loan.book)}
                                 alt={loan.book?.title}
-                                className="mdb-card-cover"
+                                className="mdb-table-cover"
                               />
                             </div>
                           </td>

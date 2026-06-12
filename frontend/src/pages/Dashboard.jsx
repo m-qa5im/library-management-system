@@ -124,6 +124,7 @@ export default function Dashboard() {
     description: '',
     coverImageUrl: '',
     isbn: '',
+    totalQuantity: 1,
   });
 
   // Add Member Form
@@ -283,7 +284,7 @@ export default function Dashboard() {
     setActiveModal(null);
     setSubmitting(false);
     // Reset Forms
-    setBookForm({ title: '', author: '', category: 'General', description: '', coverImageUrl: '', isbn: '' });
+    setBookForm({ title: '', author: '', category: 'General', description: '', coverImageUrl: '', isbn: '', totalQuantity: 1 });
     setMemberForm({ userId: '', memberCode: '', fullName: '', email: '', password: '', role: 'Member' });
     setIssueForm({ bookSearch: '', bookId: '', memberSearch: '', memberId: '' });
     setReturnForm({ selectedTransactionId: '' });
@@ -1128,6 +1129,20 @@ export default function Dashboard() {
                     value={bookForm.isbn}
                     onChange={(e) => setBookForm((prev) => ({ ...prev, isbn: e.target.value }))}
                     disabled={submitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="modal-book-quantity">Total Quantity *</label>
+                  <input
+                    id="modal-book-quantity"
+                    type="number"
+                    min="1"
+                    className="form-input"
+                    value={bookForm.totalQuantity}
+                    onChange={(e) => setBookForm((prev) => ({ ...prev, totalQuantity: parseInt(e.target.value, 10) || 1 }))}
+                    disabled={submitting}
+                    required
                   />
                 </div>
 

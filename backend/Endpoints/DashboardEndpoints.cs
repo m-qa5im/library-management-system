@@ -16,13 +16,14 @@ namespace backend.Endpoints
             {
                 var bookStats = await dbContext.Books
                     .AsNoTracking()
+                    .Where(b => b.IsActive)
                     .GroupBy(_ => 1)
                     .Select(g => new
                     {
                         TotalBooks = g.Sum(b => b.TotalQuantity),
                         BorrowedBooks = g.Sum(b => b.TotalQuantity - b.AvailableQuantity),
-                        AvailableBooks = g.Sum(b => b.IsActive ? b.AvailableQuantity : 0),
-                        ExhaustedTitlesCount = g.Count(b => b.AvailableQuantity == 0 && b.IsActive)
+                        AvailableBooks = g.Sum(b => b.AvailableQuantity),
+                        ExhaustedTitlesCount = g.Count(b => b.AvailableQuantity == 0)
                     })
                     .FirstOrDefaultAsync();
 
