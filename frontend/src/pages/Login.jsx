@@ -20,6 +20,7 @@ export default function Login() {
   const [selectedRole, setSelectedRole] = useState('Member');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [shouldShake, setShouldShake] = useState(false);
 
   const updateField = (event) => {
     const { name, value } = event.target;
@@ -28,6 +29,11 @@ export default function Login() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const triggerShake = () => {
+    setShouldShake(true);
+    setTimeout(() => setShouldShake(false), 450);
   };
 
   const validateForm = () => {
@@ -54,6 +60,7 @@ export default function Login() {
 
     if (validationError) {
       toast.error(validationError);
+      triggerShake();
       return;
     }
 
@@ -67,6 +74,7 @@ export default function Login() {
 
       if (!loginResponse?.userId || !loginResponse?.role) {
         toast.error('Invalid authentication response received from server.');
+        triggerShake();
         return;
       }
 
@@ -74,6 +82,7 @@ export default function Login() {
         toast.error(
           `This account is registered as ${loginResponse.role}. Please select the correct account role.`
         );
+        triggerShake();
         return;
       }
 
@@ -109,8 +118,10 @@ export default function Login() {
       }
 
       toast.error('Unsupported account role.');
+      triggerShake();
     } catch (err) {
       toast.error(err.message || 'Login failed. Please try again.');
+      triggerShake();
     } finally {
       setSubmitting(false);
     }
@@ -118,16 +129,16 @@ export default function Login() {
 
   return (
     <main className="auth-page">
-      <section className="auth-card" aria-label="Login form">
+      <section className={`auth-card ${shouldShake ? 'shake' : ''}`} aria-label="Login form">
         <div className="auth-card-body">
-          <div className="auth-brand-icon">
+          <div className="auth-brand-icon auth-fade-in" style={{ '--i': 0 }}>
             <LibraryIcon />
           </div>
 
-          <h1>Library Management System</h1>
-          <p className="auth-subtitle">Access your Admin or Member portal.</p>
+          <h1 className="auth-fade-in" style={{ '--i': 0 }}>Library Management System</h1>
+          <p className="auth-subtitle auth-fade-in" style={{ '--i': 0 }}>Access your Admin or Member portal.</p>
 
-          <div className="auth-tabs" aria-label="Authentication navigation">
+          <div className="auth-tabs auth-fade-in" style={{ '--i': 1 }} aria-label="Authentication navigation">
             <Link replace to="/login" className="auth-tab auth-tab-active">
               Login
             </Link>
@@ -138,7 +149,7 @@ export default function Login() {
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 2 }}>
               <label htmlFor="email">Email Address</label>
 
               <input
@@ -152,7 +163,7 @@ export default function Login() {
               />
             </div>
 
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 3 }}>
               <div className="auth-label-row">
                 <label htmlFor="password">Password</label>
 
@@ -176,7 +187,7 @@ export default function Login() {
               />
             </div>
 
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 4 }}>
               <label htmlFor="role">Account Role</label>
 
               <select
@@ -190,9 +201,9 @@ export default function Login() {
               </select>
             </div>
 
-            <button className="auth-submit-button" type="submit" disabled={submitting}>
+            <button className={`auth-submit-button auth-fade-in ${submitting ? 'submitting' : ''}`} style={{ '--i': 5 }} type="submit" disabled={submitting}>
               <span>{submitting ? 'Verifying...' : 'Login'}</span>
-              <ArrowRightIcon />
+              {submitting ? <SpinnerIcon /> : <ArrowRightIcon />}
             </button>
           </form>
 
@@ -234,6 +245,14 @@ function ShieldIcon() {
     <svg viewBox="0 0 24 24" fill="none">
       <path d="M12 3 5.5 5.8v5.7c0 4.1 2.7 7.8 6.5 9.1 3.8-1.3 6.5-5 6.5-9.1V5.8L12 3Z" />
       <path d="M9.5 12.2 11.3 14l3.4-4" />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg className="auth-spinner" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeLinecap="round" />
     </svg>
   );
 }

@@ -51,19 +51,19 @@
 .anp-stat-card {
   background-color: var(--color-surface-container-lowest);
   border: 1px solid var(--color-surface-container-high);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: var(--shadow-level-1);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+  transition: transform 250ms var(--ease-out-expo), border-color 250ms var(--ease-out-expo);
   min-height: 160px;
 }
 
 .anp-stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-level-2);
+  transform: translateY(-2px);
+  border-color: var(--color-primary);
 }
 
 .anp-stat-header {
@@ -127,9 +127,11 @@
 }
 
 .anp-stat-value {
-  font-size: 1.8rem;
-  font-weight: 800;
+  font-size: 2.25rem;
+  font-weight: 900;
   color: var(--color-on-surface);
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .anp-stat-badge {
@@ -189,9 +191,9 @@
 .anp-panel-card {
   background-color: var(--color-surface-container-lowest);
   border: 1px solid var(--color-surface-container-high);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 24px;
-  box-shadow: var(--shadow-level-1);
+  box-shadow: none;
 }
 
 .anp-panel-title {
@@ -326,7 +328,7 @@
 .anp-skeleton-card {
   background-color: var(--color-surface-container-lowest);
   border: 1px solid var(--color-surface-container-high);
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 24px;
   height: 160px;
   display: flex;

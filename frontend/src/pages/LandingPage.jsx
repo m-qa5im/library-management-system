@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './LandingPage.css';
 
@@ -26,28 +26,28 @@ const features = [
     title: 'Book Management',
     tag: 'Inventory + metadata',
     description:
-      'Maintain book records with ISBN, author, category, availability, quantity, and structured catalog details.',
+      'Maintain comprehensive book records with ISBN, author, category, availability, quantity, and structured catalog details.',
     Icon: BookIcon,
   },
   {
     title: 'Member Management',
     tag: 'Profiles + history',
     description:
-      'Manage member accounts, borrowing limits, contact details, status, permissions, and activity history.',
+      'Manage member accounts, borrowing limits, contact details, status, permissions, and complete circulation histories.',
     Icon: UsersIcon,
   },
   {
     title: 'Book Search',
     tag: 'Title + author + ISBN',
     description:
-      'Allow users to find books quickly through searchable catalog fields and availability-based discovery.',
+      'Allow users to find books instantly through searchable catalog fields, query debouncing, and availability discovery.',
     Icon: SearchIcon,
   },
   {
     title: 'Borrowing and Returns',
     tag: 'Due dates + status',
     description:
-      'Track issued books, returned books, overdue records, transaction status, and circulation workflows.',
+      'Track issued books, active loans, returned inventory, overdue indicators, transaction status, and circulation queues.',
     Icon: SwapIcon,
   },
 ];
@@ -57,19 +57,19 @@ const workflowSteps = [
     number: '01',
     title: 'Organize the catalog',
     description:
-      'Add books, maintain metadata, classify inventory, and keep availability information accurate.',
+      'Librarians add books, maintain structural metadata, classify inventory levels, and keep book availability metrics accurate.',
   },
   {
     number: '02',
     title: 'Manage members',
     description:
-      'Register members, maintain profiles, apply access rules, and monitor borrowing activity.',
+      'Register system members, maintain user profiles, apply borrowing rules, and monitor real-time borrowing activity.',
   },
   {
     number: '03',
     title: 'Control circulation',
     description:
-      'Issue books, process returns, track due dates, and identify overdue borrowing records.',
+      'Issue books, process returns, track transaction logs, approve borrow requests, and flag overdue circulation records.',
   },
 ];
 
@@ -83,20 +83,61 @@ const adminItems = [
 const memberItems = [
   'Search books with advanced filters',
   'View book details and live availability',
-  'Borrow available books with one click',
-  'Track borrowed books and due dates',
+  'Request borrowing options with one click',
+  'Track active loans and due dates',
 ];
 
 const trustItems = [
-  'Role-based access for administrators and members',
-  'Structured records for books, users, and borrowing activity',
-  'Clear visibility into issued, returned, and overdue books',
+  'Role-based access control for administrators and members',
+  'Structured transactional logs for books, users, and transactions',
+  'Clear dashboard visibility into active, returned, and overdue records',
 ];
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+    );
+
+    const targets = document.querySelectorAll(
+      '.lms-metric-card, .lms-feature-item, .lms-workflow-step, .lms-portal-card'
+    );
+    targets.forEach((el) => observer.observe(el));
+
+    const visualObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active-visual');
+            visualObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    const visuals = document.querySelectorAll(
+      '.lms-hero-visual, .lms-portal-visual'
+    );
+    visuals.forEach((el) => visualObserver.observe(el));
+
+    return () => {
+      targets.forEach((el) => observer.unobserve(el));
+      visuals.forEach((el) => visualObserver.unobserve(el));
+    };
+  }, []);
 
   return (
     <div className="lms-landing">
@@ -127,61 +168,66 @@ export default function LandingPage() {
           </button>
         </div>
 
-        {menuOpen && (
-          <nav className="lms-mobile-nav" aria-label="Mobile navigation">
-            <a href="#features" onClick={closeMenu}>
-              Features
-            </a>
-            <a href="#workflow" onClick={closeMenu}>
-              Workflow
-            </a>
-            <a href="#roles" onClick={closeMenu}>
-              Roles
-            </a>
-            <Link to="/login" onClick={closeMenu}>
-              Login
-            </Link>
-            <Link to="/signup" className="lms-mobile-cta" onClick={closeMenu}>
-              Get Started
-            </Link>
-          </nav>
-        )}
+        <nav 
+          className={`lms-mobile-nav ${menuOpen ? 'open' : ''}`} 
+          aria-label="Mobile navigation"
+        >
+          <a href="#features" onClick={closeMenu}>
+            Features
+          </a>
+          <a href="#workflow" onClick={closeMenu}>
+            Workflow
+          </a>
+          <a href="#roles" onClick={closeMenu}>
+            Roles
+          </a>
+          <Link to="/login" onClick={closeMenu}>
+            Login
+          </Link>
+          <Link to="/signup" className="lms-mobile-cta" onClick={closeMenu}>
+            Get Started
+          </Link>
+        </nav>
       </header>
 
       <main>
         <section className="lms-hero">
           <div className="lms-container lms-hero-grid">
             <div className="lms-hero-content">
-              <p className="lms-eyebrow">Full-stack library operations platform</p>
+              <span className="lms-eyebrow animate-hero-eyebrow">Academic Operations Platform</span>
 
-              <h1>Manage Books, Members, Borrowing, and Returns in One System</h1>
+              <h1 className="animate-hero-title">Precision Circulation and Asset Management for Academic Libraries</h1>
 
-              <p className="lms-hero-text">
-                A focused Library Management System for catalog control, member records,
-                book search, issue workflows, return processing, and due-date tracking.
+              <p className="lms-hero-text animate-hero-text">
+                A dedicated catalog, member, and circulation system built to streamline 
+                institutional database audits, track borrow cycles, and eliminate overdue latency.
               </p>
 
-              <div className="lms-hero-actions">
+              <div className="lms-hero-actions animate-hero-actions">
                 <Link to="/signup" className="lms-primary-button">
                   Get Started
                 </Link>
 
                 <Link to="/login" className="lms-secondary-button">
-                  Login
+                  Login to Portal
                 </Link>
               </div>
             </div>
 
-            <div className="lms-hero-visual" aria-hidden="true">
+            <div className="lms-hero-visual animate-hero-visual" aria-hidden="true">
               <DashboardSvg />
             </div>
           </div>
         </section>
 
-        <section className="lms-metrics-section" aria-label="System capabilities">
+        <section className="lms-metrics-section" aria-label="System components index">
           <div className="lms-container lms-metrics-grid">
-            {metrics.map((item) => (
-              <div className="lms-metric-card" key={item.value}>
+            {metrics.map((item, index) => (
+              <div 
+                className="lms-metric-card" 
+                key={item.value}
+                style={{ '--i': index }}
+              >
                 <strong>{item.value}</strong>
                 <span>{item.label}</span>
               </div>
@@ -192,21 +238,27 @@ export default function LandingPage() {
         <section className="lms-section" id="features">
           <div className="lms-container">
             <SectionHeading
-              kicker="Core modules"
-              title="System Features"
-              description="Designed around the daily workflows of librarians, administrators, and members."
+              title="Core Capabilities"
+              description="Structured mechanisms engineered for precise cataloging, user registration, and circulation control."
             />
 
-            <div className="lms-feature-grid">
-              {features.map(({ title, tag, description, Icon }) => (
-                <article className="lms-feature-card" key={title}>
-                  <div className="lms-icon-box">
-                    <Icon />
+            <div className="lms-features-list">
+              {features.map(({ title, tag, description, Icon }, index) => (
+                <article 
+                  className="lms-feature-item" 
+                  key={title}
+                  style={{ '--i': index }}
+                >
+                  <div className="lms-feature-header">
+                    <div className="lms-feature-icon-title">
+                      <div className="lms-icon-box">
+                        <Icon />
+                      </div>
+                      <h3>{title}</h3>
+                    </div>
+                    <span className="lms-feature-tag">{tag}</span>
                   </div>
-
-                  <span className="lms-card-tag">{tag}</span>
-                  <h3>{title}</h3>
-                  <p>{description}</p>
+                  <p className="lms-feature-desc">{description}</p>
                 </article>
               ))}
             </div>
@@ -216,18 +268,26 @@ export default function LandingPage() {
         <section className="lms-section lms-workflow-section" id="workflow">
           <div className="lms-container">
             <SectionHeading
-              kicker="Operational flow"
-              title="How the System Works"
-              description="A clear circulation workflow from cataloging to member borrowing and return control."
+              title="Circulation Timeline"
+              description="A clean chronological cycle from database indexing to active loan enforcement."
             />
 
-            <div className="lms-workflow-grid">
-              {workflowSteps.map((step) => (
-                <article className="lms-workflow-card" key={step.number}>
-                  <span>{step.number}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.description}</p>
-                </article>
+            <div className="lms-workflow-timeline">
+              {workflowSteps.map((step, index) => (
+                <div 
+                  className="lms-workflow-step" 
+                  key={step.number}
+                  style={{ '--i': index }}
+                >
+                  <div className="lms-workflow-marker" aria-hidden="true" />
+                  <div className="lms-workflow-content">
+                    <div className="lms-workflow-title-row">
+                      <span className="lms-workflow-step-num">{step.number}</span>
+                      <h3>{step.title}</h3>
+                    </div>
+                    <p>{step.description}</p>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -236,9 +296,8 @@ export default function LandingPage() {
         <section className="lms-section lms-roles-section" id="roles">
           <div className="lms-container">
             <SectionHeading
-              kicker="Role-based experience"
-              title="Tailored Portals"
-              description="Separate, optimized interfaces for administrators and library members."
+              title="Portal Ecosystem"
+              description="Targeted dashboards engineered specifically for administrative control and member self-service."
             />
 
             <div className="lms-portal-grid">
@@ -254,7 +313,7 @@ export default function LandingPage() {
               <PortalCard
                 label="For Members"
                 title="Member Portal"
-                description="A clean self-service interface for book discovery, availability checking, and borrowing visibility."
+                description="A clean self-service interface for book discovery, availability checking, and personal loan tracking."
                 items={memberItems}
                 Icon={MemberIcon}
                 Visual={MemberVisualSvg}
@@ -263,10 +322,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="lms-trust-section">
+        <section className="lms-trust-section" aria-label="Operational standards">
           <div className="lms-container lms-trust-grid">
             <div>
-              <p className="lms-eyebrow">Built for reliable library operations</p>
               <h2>Clear records, controlled access, and predictable workflows.</h2>
             </div>
 
@@ -286,13 +344,13 @@ export default function LandingPage() {
             <span className="lms-cta-kicker">Ready to streamline operations?</span>
             <h2>Start Using the Library Management System</h2>
             <p>
-              Create your account or log in to manage catalog records, member activity,
+              Create your account or log in to manage catalog records, member activity, 
               borrowing transactions, returns, and due dates from one structured system.
             </p>
 
             <div className="lms-cta-actions">
               <Link to="/signup" className="lms-light-button">
-                Login or Signup
+                Login or Sign Up
               </Link>
             </div>
           </div>
@@ -306,8 +364,8 @@ export default function LandingPage() {
               Library Management System
             </Link>
             <p>
-              A full-stack system for cataloging, member control, borrowing workflows,
-              and due-date tracking.
+              A modern, high-performance system for cataloging, member control, 
+              borrowing workflows, and due-date tracking.
             </p>
             <small>© 2026 Library Management System. All rights reserved.</small>
           </div>
@@ -324,12 +382,11 @@ export default function LandingPage() {
   );
 }
 
-function SectionHeading({ kicker, title, description }) {
+function SectionHeading({ title, description }) {
   return (
     <div className="lms-section-heading">
-      <span className="lms-section-kicker">{kicker}</span>
       <h2>{title}</h2>
-      <p>{description}</p>
+      {description && <p>{description}</p>}
     </div>
   );
 }
@@ -338,7 +395,7 @@ function PortalCard({ label, title, description, items, Icon, Visual }) {
   return (
     <article className="lms-portal-card">
       <div className="lms-portal-content">
-        <span className="lms-card-tag">{label}</span>
+        <span className="lms-portal-card-tag">{label}</span>
 
         <div className="lms-portal-title-row">
           <div className="lms-icon-box">
@@ -455,57 +512,58 @@ function DashboardSvg() {
       <defs>
         <linearGradient id="heroPanel" x1="0" x2="1" y1="0" y2="1">
           <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#e2e7ff" />
+          <stop offset="100%" stopColor="#eaedff" />
         </linearGradient>
         <linearGradient id="heroScreen" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="#152033" />
-          <stop offset="100%" stopColor="#283044" />
+          <stop offset="0%" stopColor="#f8fafc" />
+          <stop offset="100%" stopColor="#e2e8f0" />
         </linearGradient>
       </defs>
 
-      <rect width="760" height="560" rx="32" fill="url(#heroPanel)" />
-      <circle cx="122" cy="104" r="70" fill="#d0e1fb" opacity="0.5" />
-      <circle cx="642" cy="424" r="92" fill="#b8c4ff" opacity="0.28" />
+      <rect width="760" height="560" rx="16" fill="url(#heroPanel)" />
+      <circle cx="122" cy="104" r="70" fill="#dde1ff" opacity="0.4" className="svg-fade-in" style={{ '--i': 0 }} />
+      <circle cx="642" cy="424" r="92" fill="#dde1ff" opacity="0.25" className="svg-fade-in" style={{ '--i': 1 }} />
 
-      <rect x="110" y="86" width="540" height="356" rx="28" fill="#ffffff" stroke="#c4c5d5" />
-      <rect x="150" y="126" width="460" height="258" rx="18" fill="url(#heroScreen)" />
+      <rect x="110" y="86" width="540" height="356" rx="16" fill="#ffffff" stroke="#c4c5d5" className="svg-fade-in" style={{ '--i': 2 }} />
+      <rect x="150" y="126" width="460" height="258" rx="12" fill="url(#heroScreen)" stroke="#cbd5e1" strokeWidth="1" className="svg-fade-in" style={{ '--i': 3 }} />
 
-      <rect x="178" y="154" width="128" height="14" rx="7" fill="#b8c4ff" />
-      <rect x="178" y="180" width="92" height="8" rx="4" fill="#eef0ff" opacity="0.55" />
-      <rect x="448" y="152" width="118" height="30" rx="15" fill="#3755c3" />
+      <rect x="178" y="154" width="128" height="14" rx="7" fill="#00288e" className="svg-fade-in" style={{ '--i': 4 }} />
+      <rect x="178" y="180" width="92" height="8" rx="4" fill="#64748b" opacity="0.7" className="svg-fade-in" style={{ '--i': 5 }} />
+      <rect x="448" y="152" width="118" height="30" rx="15" fill="#00288e" className="svg-fade-in" style={{ '--i': 5 }} />
 
-      <rect x="178" y="218" width="180" height="112" rx="12" fill="#eef0ff" opacity="0.12" />
+      <rect x="178" y="218" width="180" height="112" rx="12" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" className="svg-fade-in" style={{ '--i': 6 }} />
       <path
         d="M196 296c20-42 42-24 64-48 24-26 44 4 78-10"
-        stroke="#7dd3fc"
+        stroke="#00288e"
         strokeWidth="5"
         fill="none"
         strokeLinecap="round"
+        className="svg-draw-path"
       />
-      <path d="M196 305h134M196 274h134M196 244h134" stroke="#eef0ff" strokeOpacity="0.16" />
+      <path d="M196 305h134M196 274h134M196 244h134" stroke="#e2e8f0" strokeWidth="1" className="svg-fade-in" style={{ '--i': 7 }} />
 
-      <rect x="382" y="218" width="184" height="112" rx="12" fill="#eef0ff" opacity="0.12" />
-      <rect x="404" y="238" width="132" height="18" rx="9" fill="#eef0ff" opacity="0.5" />
-      <rect x="404" y="272" width="42" height="10" rx="5" fill="#b8c4ff" />
-      <rect x="458" y="272" width="72" height="10" rx="5" fill="#eef0ff" opacity="0.42" />
-      <rect x="404" y="296" width="42" height="10" rx="5" fill="#b8c4ff" />
-      <rect x="458" y="296" width="86" height="10" rx="5" fill="#eef0ff" opacity="0.42" />
+      <rect x="382" y="218" width="184" height="112" rx="12" fill="#ffffff" stroke="#e2e8f0" strokeWidth="1" className="svg-fade-in" style={{ '--i': 7 }} />
+      <rect x="404" y="238" width="132" height="18" rx="9" fill="#00288e" opacity="0.15" className="svg-fade-in" style={{ '--i': 8 }} />
+      <rect x="404" y="272" width="42" height="10" rx="5" fill="#00288e" opacity="0.3" className="svg-fade-in" style={{ '--i': 9 }} />
+      <rect x="458" y="272" width="72" height="10" rx="5" fill="#64748b" opacity="0.4" className="svg-fade-in" style={{ '--i': 9 }} />
+      <rect x="404" y="296" width="42" height="10" rx="5" fill="#00288e" opacity="0.3" className="svg-fade-in" style={{ '--i': 10 }} />
+      <rect x="458" y="296" width="86" height="10" rx="5" fill="#64748b" opacity="0.4" className="svg-fade-in" style={{ '--i': 10 }} />
 
-      <rect x="168" y="352" width="398" height="16" rx="8" fill="#b7c8e1" />
-      <path d="M314 384h132l26 56H288l26-56Z" fill="#d2d9f4" />
-      <rect x="252" y="438" width="256" height="24" rx="12" fill="#b7c8e1" />
+      <rect x="168" y="352" width="398" height="16" rx="8" fill="#c4c5d5" className="svg-fade-in" style={{ '--i': 11 }} />
+      <path d="M314 384h132l26 56H288l26-56Z" fill="#dde1ff" className="svg-fade-in" style={{ '--i': 12 }} />
+      <rect x="252" y="438" width="256" height="24" rx="12" fill="#c4c5d5" className="svg-fade-in" style={{ '--i': 13 }} />
 
-      <rect x="76" y="278" width="138" height="154" rx="18" fill="#ffffff" stroke="#c4c5d5" />
-      <rect x="104" y="308" width="70" height="10" rx="5" fill="#1e40af" />
-      <rect x="104" y="334" width="46" height="8" rx="4" fill="#54647a" opacity="0.5" />
-      <rect x="104" y="356" width="76" height="8" rx="4" fill="#54647a" opacity="0.35" />
-      <rect x="104" y="386" width="82" height="22" rx="11" fill="#dde1ff" />
-      <path d="M120 397h50" stroke="#1e40af" strokeWidth="5" strokeLinecap="round" />
+      <rect x="76" y="278" width="138" height="154" rx="16" fill="#ffffff" stroke="#c4c5d5" className="svg-fade-in" style={{ '--i': 8 }} />
+      <rect x="104" y="308" width="70" height="10" rx="5" fill="#00288e" className="svg-fade-in" style={{ '--i': 9 }} />
+      <rect x="104" y="334" width="46" height="8" rx="4" fill="#505f76" opacity="0.5" className="svg-fade-in" style={{ '--i': 10 }} />
+      <rect x="104" y="356" width="76" height="8" rx="4" fill="#505f76" opacity="0.35" className="svg-fade-in" style={{ '--i': 11 }} />
+      <rect x="104" y="386" width="82" height="22" rx="11" fill="#dde1ff" className="svg-fade-in" style={{ '--i': 12 }} />
+      <path d="M120 397h50" stroke="#00288e" strokeWidth="5" strokeLinecap="round" className="svg-draw-path" />
 
-      <rect x="548" y="252" width="136" height="170" rx="18" fill="#ffffff" stroke="#c4c5d5" />
-      <rect x="580" y="286" width="72" height="86" rx="10" fill="#dde1ff" />
-      <path d="M598 309h36M598 332h36M598 355h28" stroke="#1e40af" strokeWidth="6" strokeLinecap="round" />
-      <rect x="580" y="388" width="74" height="18" rx="9" fill="#d0e1fb" />
+      <rect x="548" y="252" width="136" height="170" rx="16" fill="#ffffff" stroke="#c4c5d5" className="svg-fade-in" style={{ '--i': 9 }} />
+      <rect x="580" y="286" width="72" height="86" rx="10" fill="#dde1ff" className="svg-fade-in" style={{ '--i': 10 }} />
+      <path d="M598 309h36M598 332h36M598 355h28" stroke="#00288e" strokeWidth="6" strokeLinecap="round" className="svg-draw-path" />
+      <rect x="580" y="388" width="74" height="18" rx="9" fill="#eaedff" className="svg-fade-in" style={{ '--i': 11 }} />
     </svg>
   );
 }
@@ -513,9 +571,9 @@ function DashboardSvg() {
 function AdminVisualSvg() {
   return (
     <svg viewBox="0 0 720 230" role="img" aria-label="Admin analytics illustration">
-      <rect width="720" height="230" fill="#f8fafc" />
-      <rect x="42" y="34" width="636" height="162" rx="18" fill="#ffffff" stroke="#cbd5e1" />
-      <path d="M84 154h560M84 118h560M84 82h560" stroke="#e2e8f0" strokeWidth="2" />
+      <rect width="720" height="230" fill="#faf8ff" />
+      <rect x="42" y="34" width="636" height="162" rx="16" fill="#ffffff" stroke="#c4c5d5" className="svg-fade-in" style={{ '--i': 0 }} />
+      <path d="M84 154h560M84 118h560M84 82h560" stroke="#eaedff" strokeWidth="2" className="svg-fade-in" style={{ '--i': 1 }} />
 
       {[0, 1, 2, 3, 4, 5, 6, 7].map((bar) => (
         <rect
@@ -525,20 +583,23 @@ function AdminVisualSvg() {
           width="28"
           height={54 + (bar % 3) * 16}
           rx="6"
-          fill="#93c5fd"
+          fill="#dde1ff"
+          className="svg-fade-in"
+          style={{ '--i': 2 + bar }}
         />
       ))}
 
       <path
         d="M94 134c58-42 92-20 137-50 48-32 76 18 126-10 63-35 104 21 166-6 40-17 74-10 116 18"
         fill="none"
-        stroke="#1e40af"
+        stroke="#00288e"
         strokeWidth="6"
         strokeLinecap="round"
+        className="svg-draw-path"
       />
 
-      <rect x="518" y="52" width="114" height="30" rx="15" fill="#dde1ff" />
-      <path d="M538 67h72" stroke="#1e40af" strokeWidth="5" strokeLinecap="round" />
+      <rect x="518" y="52" width="114" height="30" rx="15" fill="#dde1ff" className="svg-fade-in" style={{ '--i': 3 }} />
+      <path d="M538 67h72" stroke="#00288e" strokeWidth="5" strokeLinecap="round" className="svg-draw-path" />
     </svg>
   );
 }
@@ -546,23 +607,23 @@ function AdminVisualSvg() {
 function MemberVisualSvg() {
   return (
     <svg viewBox="0 0 720 230" role="img" aria-label="Member catalog illustration">
-      <rect width="720" height="230" fill="#eef2ff" />
-      <rect x="70" y="30" width="580" height="170" rx="20" fill="#ffffff" stroke="#cbd5e1" />
+      <rect width="720" height="230" fill="#f2f3ff" />
+      <rect x="70" y="30" width="580" height="170" rx="16" fill="#ffffff" stroke="#c4c5d5" className="svg-fade-in" style={{ '--i': 0 }} />
 
       {[0, 1, 2, 3].map((card) => (
-        <g key={card}>
+        <g key={card} className="svg-fade-in" style={{ '--i': 1 + card }}>
           <rect x={104 + card * 130} y="62" width="92" height="108" rx="12" fill="#dde1ff" />
-          <rect x={120 + card * 130} y="84" width="60" height="10" rx="5" fill="#1e40af" />
-          <rect x={120 + card * 130} y="105" width="44" height="8" rx="4" fill="#54647a" opacity="0.55" />
-          <rect x={120 + card * 130} y="128" width="58" height="8" rx="4" fill="#54647a" opacity="0.35" />
+          <rect x={120 + card * 130} y="84" width="60" height="10" rx="5" fill="#00288e" />
+          <rect x={120 + card * 130} y="105" width="44" height="8" rx="4" fill="#505f76" opacity="0.55" />
+          <rect x={120 + card * 130} y="128" width="58" height="8" rx="4" fill="#505f76" opacity="0.35" />
         </g>
       ))}
 
-      <rect x="536" y="62" width="76" height="26" rx="13" fill="#1e40af" />
-      <path d="M552 75h44" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" />
+      <rect x="536" y="62" width="76" height="26" rx="13" fill="#00288e" className="svg-fade-in" style={{ '--i': 5 }} />
+      <path d="M552 75h44" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" className="svg-draw-path" />
 
-      <rect x="104" y="184" width="244" height="8" rx="4" fill="#c4c5d5" />
-      <rect x="104" y="184" width="132" height="8" rx="4" fill="#1e40af" />
+      <rect x="104" y="184" width="244" height="8" rx="4" fill="#c4c5d5" className="svg-fade-in" style={{ '--i': 6 }} />
+      <rect x="104" y="184" width="132" height="8" rx="4" fill="#00288e" className="svg-fade-in" style={{ '--i': 6 }} />
     </svg>
   );
 }

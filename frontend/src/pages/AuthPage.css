@@ -393,3 +393,142 @@
     text-align: center;
   }
 }
+
+/* ─── AUTHENTICATION PAGE MOTION SYSTEM ─── */
+.auth-page {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Staggered load animation */
+.auth-fade-in {
+  opacity: 0;
+  animation: authFadeInUp 600ms var(--ease-out-expo) forwards;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+
+@keyframes authFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Auth card slide and zoom entrance */
+.auth-card {
+  animation: authCardEntrance 650ms var(--ease-out-expo) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes authCardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Input control smooth focus scaling */
+.auth-field input,
+.auth-field select {
+  transition:
+    border-color 220ms var(--ease-out-quart),
+    box-shadow 220ms var(--ease-out-quart),
+    background-color 220ms var(--ease-out-quart);
+}
+
+.auth-field input:focus,
+.auth-field select:focus {
+  border-color: #00288e;
+  box-shadow: 0 0 0 3px rgba(0, 40, 142, 0.16);
+}
+
+/* Tab active indicator switches */
+.auth-tab {
+  transition:
+    background-color 200ms var(--ease-out-quart),
+    color 200ms var(--ease-out-quart),
+    box-shadow 200ms var(--ease-out-quart),
+    transform 200ms var(--ease-out-quart);
+}
+
+.auth-tab:hover:not(.auth-tab-active) {
+  color: #00288e;
+  background-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-0.5px);
+}
+
+/* Tactile submit button */
+.auth-submit-button {
+  transition:
+    transform 200ms var(--ease-out-expo),
+    box-shadow 200ms var(--ease-out-expo),
+    background-color 200ms var(--ease-out-expo);
+}
+
+.auth-submit-button:hover,
+.auth-submit-button:focus-visible {
+  transform: translateY(-1.5px);
+  background-color: #001c66;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.14);
+}
+
+.auth-submit-button:active {
+  transform: translateY(-0.5px);
+}
+
+/* Submit loading pulse state */
+.auth-submit-button.submitting {
+  animation: buttonLoadingPulse 1.4s infinite ease-in-out;
+  pointer-events: none;
+  background-color: #001c66;
+}
+
+@keyframes buttonLoadingPulse {
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 0.78; }
+}
+
+/* Spinner icon rotation */
+.auth-spinner {
+  width: 18px;
+  height: 18px;
+  animation: authSpin 750ms linear infinite;
+  color: currentColor;
+}
+
+@keyframes authSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Validation shake indicator */
+.auth-card.shake {
+  animation: authShake 400ms ease-in-out;
+}
+
+@keyframes authShake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-5px); }
+  30%, 60%, 90% { transform: translateX(5px); }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .auth-card,
+  .auth-fade-in,
+  .auth-tab,
+  .auth-submit-button,
+  .auth-spinner {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}

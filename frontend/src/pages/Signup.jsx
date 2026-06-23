@@ -17,6 +17,7 @@ export default function Signup() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [shouldShake, setShouldShake] = useState(false);
 
   const updateField = (event) => {
     const { name, value } = event.target;
@@ -25,6 +26,11 @@ export default function Signup() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const triggerShake = () => {
+    setShouldShake(true);
+    setTimeout(() => setShouldShake(false), 450);
   };
 
   const validateForm = () => {
@@ -75,6 +81,7 @@ export default function Signup() {
 
     if (validationError) {
       toast.error(validationError);
+      triggerShake();
       return;
     }
 
@@ -95,6 +102,7 @@ export default function Signup() {
       }, 900);
     } catch (err) {
       toast.error(err.message || 'Signup failed. Please try again.');
+      triggerShake();
     } finally {
       setSubmitting(false);
     }
@@ -102,16 +110,16 @@ export default function Signup() {
 
   return (
     <main className="auth-page">
-      <section className="auth-card" aria-label="Signup form">
+      <section className={`auth-card ${shouldShake ? 'shake' : ''}`} aria-label="Signup form">
         <div className="auth-card-body">
-          <div className="auth-brand-icon">
+          <div className="auth-brand-icon auth-fade-in" style={{ '--i': 0 }}>
             <LibraryIcon />
           </div>
 
-          <h1>Library Management System</h1>
-          <p className="auth-subtitle">Create your Member portal account.</p>
+          <h1 className="auth-fade-in" style={{ '--i': 0 }}>Library Management System</h1>
+          <p className="auth-subtitle auth-fade-in" style={{ '--i': 0 }}>Create your Member portal account.</p>
 
-          <div className="auth-tabs" aria-label="Authentication navigation">
+          <div className="auth-tabs auth-fade-in" style={{ '--i': 1 }} aria-label="Authentication navigation">
             <Link replace to="/login" className="auth-tab">
               Login
             </Link>
@@ -121,7 +129,7 @@ export default function Signup() {
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 2 }}>
               <label htmlFor="fullName">Full Name</label>
               <input
                 id="fullName"
@@ -134,7 +142,7 @@ export default function Signup() {
               />
             </div>
 
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 3 }}>
               <label htmlFor="email">Email Address</label>
               <input
                 id="email"
@@ -147,7 +155,7 @@ export default function Signup() {
               />
             </div>
 
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 4 }}>
               <div className="auth-label-row">
                 <label htmlFor="password">Password</label>
                 <button
@@ -170,7 +178,7 @@ export default function Signup() {
               />
             </div>
 
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 5 }}>
               <label htmlFor="confirmPassword">Confirm Password</label>
               <input
                 id="confirmPassword"
@@ -183,7 +191,7 @@ export default function Signup() {
               />
             </div>
 
-            <div className="auth-field">
+            <div className="auth-field auth-fade-in" style={{ '--i': 6 }}>
               <label htmlFor="role">Account Role</label>
               <select id="role" name="role" value="Member" disabled>
                 <option value="Member">Member</option>
@@ -191,9 +199,9 @@ export default function Signup() {
               <small>Administrative accounts are created internally by the library.</small>
             </div>
 
-            <button className="auth-submit-button" type="submit" disabled={submitting}>
+            <button className={`auth-submit-button auth-fade-in ${submitting ? 'submitting' : ''}`} style={{ '--i': 7 }} type="submit" disabled={submitting}>
               <span>{submitting ? 'Creating Account...' : 'Create Account'}</span>
-              <ArrowRightIcon />
+              {submitting ? <SpinnerIcon /> : <ArrowRightIcon />}
             </button>
           </form>
 
@@ -235,6 +243,14 @@ function ShieldIcon() {
     <svg viewBox="0 0 24 24" fill="none">
       <path d="M12 3 5.5 5.8v5.7c0 4.1 2.7 7.8 6.5 9.1 3.8-1.3 6.5-5 6.5-9.1V5.8L12 3Z" />
       <path d="M9.5 12.2 11.3 14l3.4-4" />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg className="auth-spinner" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeLinecap="round" />
     </svg>
   );
 }

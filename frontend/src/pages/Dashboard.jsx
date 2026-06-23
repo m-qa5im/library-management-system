@@ -63,6 +63,41 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // ─── DELIGHT: DEVTOOLS EASTER EGG & CONSOLE WELCOME ───
+  useEffect(() => {
+    console.log(
+      '%c📚 Academic Archive System',
+      'color: #00288e; font-family: "Lato", sans-serif; font-size: 20px; font-weight: 900; text-shadow: 1px 1px 0px #eaedff;'
+    );
+    console.log(
+      '%cSystem operational. Ready to index knowledge and coordinate resources.',
+      'color: #505f76; font-family: "Lato", sans-serif; font-size: 14px; font-weight: 500;'
+    );
+  }, []);
+
+  // ─── DELIGHT: CONTEXTUAL TIME-OF-DAY GREETINGS ───
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const name = authUser?.name ? authUser.name.split(' ')[0] : 'Admin';
+    if (hour < 12) {
+      return {
+        text: `Good morning, ${name}`,
+        sub: 'Ready to manage the archives and circulate some literature today?'
+      };
+    } else if (hour < 17) {
+      return {
+        text: `Good afternoon, ${name}`,
+        sub: 'Archive services are online. Running smooth, structured operations.'
+      };
+    } else {
+      return {
+        text: `Good evening, ${name}`,
+        sub: 'Winding down circulation. Let’s review today’s system activity.'
+      };
+    }
+  };
+  const greeting = getGreeting();
+
   // ─── CORE DASHBOARD DATA STATE ───
   const [stats, setStats] = useState({
     totalBooks: 0,
@@ -97,7 +132,13 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeView = searchParams.get('view') || 'dashboard';
   const setActiveView = (view) => {
-    setSearchParams({ view });
+    if (document.startViewTransition) {
+      document.startViewTransition(() => {
+        setSearchParams({ view });
+      });
+    } else {
+      setSearchParams({ view });
+    }
   };
 
   const [avatarDropdownOpen, setAvatarDropdownOpen] = useState(false);
@@ -473,7 +514,19 @@ export default function Dashboard() {
 
         {/* ANALYTICS SCROLLABLE GRID BODY */}
         {activeView === 'dashboard' && (
-          <div className="db-body">
+          <div className="db-body db-view-animate">
+            {/* DELIGHT: WELCOME BANNER */}
+            <div className="db-welcome-banner">
+              <div className="db-welcome-text">
+                <h3 className="db-welcome-title">{greeting.text}</h3>
+                <p className="db-welcome-subtitle">{greeting.sub}</p>
+              </div>
+              <div className="db-welcome-time">
+                <ClockIcon className="db-welcome-clock-icon" />
+                <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+              </div>
+            </div>
+
             {/* STATS METRIC CARDS */}
             {loading ? (
               <section className="db-stats-grid" aria-label="Library metrics loading">
@@ -484,7 +537,7 @@ export default function Dashboard() {
               </section>
             ) : (
               <section className="db-stats-grid" aria-label="Library metrics">
-                <div className="db-stat-card">
+                <div className="db-stat-card db-stat-card-animate" style={{ '--i': 0 }}>
                   <div className="db-stat-icon-container books">
                     <BookOpenIcon className="db-stat-icon" />
                   </div>
@@ -496,7 +549,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="db-stat-card">
+                <div className="db-stat-card db-stat-card-animate" style={{ '--i': 1 }}>
                   <div className="db-stat-icon-container members">
                     <PeopleIcon className="db-stat-icon" />
                   </div>
@@ -508,7 +561,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="db-stat-card">
+                <div className="db-stat-card db-stat-card-animate" style={{ '--i': 2 }}>
                   <div className="db-stat-icon-container borrowed">
                     <ExportIcon className="db-stat-icon" />
                   </div>
@@ -520,7 +573,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="db-stat-card">
+                <div className="db-stat-card db-stat-card-animate" style={{ '--i': 3 }}>
                   <div className="db-stat-icon-container available">
                     <CheckCircleIcon className="db-stat-icon" />
                   </div>
@@ -624,7 +677,8 @@ export default function Dashboard() {
                   </h3>
                   <div className="db-actions-list">
                     <button
-                      className="db-action-btn db-action-btn-primary"
+                      className="db-action-btn db-action-btn-primary db-quick-action-animate"
+                      style={{ '--i': 0 }}
                       onClick={() => setActiveModal('add-book')}
                       aria-label="Add Book action"
                     >
@@ -636,7 +690,8 @@ export default function Dashboard() {
                     </button>
 
                     <button
-                      className="db-action-btn db-action-btn-secondary"
+                      className="db-action-btn db-action-btn-secondary db-quick-action-animate"
+                      style={{ '--i': 1 }}
                       onClick={() => {
                         setActiveModal('add-member');
                       }}
@@ -650,7 +705,8 @@ export default function Dashboard() {
                     </button>
 
                     <button
-                      className="db-action-btn db-action-btn-secondary"
+                      className="db-action-btn db-action-btn-secondary db-quick-action-animate"
+                      style={{ '--i': 2 }}
                       onClick={() => setActiveModal('issue-book')}
                       aria-label="Issue Book action"
                     >
@@ -662,7 +718,8 @@ export default function Dashboard() {
                     </button>
 
                     <button
-                      className="db-action-btn db-action-btn-secondary"
+                      className="db-action-btn db-action-btn-secondary db-quick-action-animate"
+                      style={{ '--i': 3 }}
                       onClick={() => setActiveModal('return-book')}
                       aria-label="Return Book action"
                     >
@@ -678,13 +735,7 @@ export default function Dashboard() {
                 {/* OPERATIONAL STATUS CARD */}
                 <section className="db-status-card" aria-label="Operational status">
                   <h4 className="db-status-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: syncError ? '#ba1a1a' : '#16a34a',
-                      display: 'inline-block'
-                    }} />
+                    <span className={`db-status-dot ${syncError ? 'offline' : 'online'}`} />
                     Operational Status
                   </h4>
                   <p className="db-status-desc">
@@ -694,13 +745,6 @@ export default function Dashboard() {
                     }
                   </p>
                 </section>
-
-                {/* DECORATIVE ACCESS BANNER */}
-                <section className="db-promo-card" aria-label="Institutional Archive Access">
-                  <div className="db-promo-bg" style={{ backgroundImage: `url(${shelfBannerImg})` }}></div>
-                  <div className="db-promo-overlay"></div>
-                  <h4 className="db-promo-title">Institutional Archive Access</h4>
-                </section>
               </div>
             </div>
           </div>
@@ -708,60 +752,72 @@ export default function Dashboard() {
 
         {/* BOOK INVENTORY CRUD PANEL */}
         {activeView === 'books' && (
-          <BookInventoryPanel
-            books={books}
-            loading={loading}
-            token={token}
-            onRefresh={() => { loadBooksData(true); loadDashboardStatsAndTransactions(true); }}
-            onAddBookClick={() => setActiveModal('add-book')}
-          />
+          <div className="db-view-animate">
+            <BookInventoryPanel
+              books={books}
+              loading={loading}
+              token={token}
+              onRefresh={() => { loadBooksData(true); loadDashboardStatsAndTransactions(true); }}
+              onAddBookClick={() => setActiveModal('add-book')}
+            />
+          </div>
         )}
 
         {/* MEMBER INVENTORY CRUD PANEL */}
         {activeView === 'members' && (
-          <MemberInventoryPanel
-            members={members}
-            users={users}
-            loading={loading}
-            token={token}
-            onRefresh={() => { loadMembersAndUsersData(true); loadDashboardStatsAndTransactions(true); }}
-            onAddMemberClick={() => setActiveModal('add-member')}
-          />
+          <div className="db-view-animate">
+            <MemberInventoryPanel
+              members={members}
+              users={users}
+              loading={loading}
+              token={token}
+              onRefresh={() => { loadMembersAndUsersData(true); loadDashboardStatsAndTransactions(true); }}
+              onAddMemberClick={() => setActiveModal('add-member')}
+            />
+          </div>
         )}
 
         {/* TRANSACTIONS LEDGER CRUD PANEL */}
         {activeView === 'transactions' && (
-          <TransactionPanel
-            transactions={transactions}
-            loading={loading}
-            token={token}
-            onRefresh={() => loadDashboardStatsAndTransactions(true)}
-            onIssueBookClick={() => setActiveModal('issue-book')}
-            onReturnBookClick={() => setActiveModal('return-book')}
-          />
+          <div className="db-view-animate">
+            <TransactionPanel
+              transactions={transactions}
+              loading={loading}
+              token={token}
+              onRefresh={() => loadDashboardStatsAndTransactions(true)}
+              onIssueBookClick={() => setActiveModal('issue-book')}
+              onReturnBookClick={() => setActiveModal('return-book')}
+            />
+          </div>
         )}
 
         {/* SYSTEM ANALYTICS & KPIs PANEL */}
         {activeView === 'analytics' && (
-          <AnalyticsPanel
-            token={token}
-          />
+          <div className="db-view-animate">
+            <AnalyticsPanel
+              token={token}
+            />
+          </div>
         )}
 
         {/* CIRCULATION REQUEST QUEUE PANEL */}
         {activeView === 'requests' && (
-          <CirculationQueuePanel
-            token={token}
-            onQueueCountChange={setPendingCount}
-          />
+          <div className="db-view-animate">
+            <CirculationQueuePanel
+              token={token}
+              onQueueCountChange={setPendingCount}
+            />
+          </div>
         )}
 
         {/* ACCOUNT PROFILE SETTINGS PANEL */}
         {activeView === 'settings' && (
-          <AccountSettingsPanel
-            userId={authUser?.userId}
-            token={token}
-          />
+          <div className="db-view-animate">
+            <AccountSettingsPanel
+              userId={authUser?.userId}
+              token={token}
+            />
+          </div>
         )}
       </main>
 

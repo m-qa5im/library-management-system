@@ -23,9 +23,9 @@
 
 .settings-card {
   background-color: #ffffff;
-  border: 1px solid #e2e7ff;
-  border-radius: 16px;
-  box-shadow: var(--shadow-level-1);
+  border: 1px solid #c4c5d5;
+  border-radius: 12px;
+  box-shadow: none;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -69,9 +69,9 @@
 
 .settings-input {
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #c4c5d5;
   background-color: #ffffff;
   color: #131b2e;
   font-size: 0.9rem;
@@ -81,7 +81,7 @@
 .settings-input:focus {
   outline: none;
   border-color: #00288e;
-  box-shadow: 0 0 0 3px rgba(0, 40, 142, 0.1);
+  box-shadow: none;
 }
 
 .settings-input:disabled {
@@ -104,10 +104,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 20px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border-radius: 8px;
+  padding: 10px 24px;
+  height: 44px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;
@@ -116,10 +117,12 @@
 .settings-btn-primary {
   background-color: #00288e;
   color: #ffffff;
+  border: 1px solid #00288e;
 }
 
 .settings-btn-primary:hover:not(:disabled) {
-  background-color: #001f70;
+  background-color: #1e40af;
+  border-color: #1e40af;
 }
 
 .settings-btn-primary:disabled {
@@ -129,11 +132,12 @@
 
 .settings-btn-secondary {
   background-color: #ffffff;
-  border-color: #cbd5e1;
-  color: #505f76;
+  border-color: #c4c5d5;
+  color: #00288e;
 }
 
 .settings-btn-secondary:hover:not(:disabled) {
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: #f4f6ff;
+  border-color: #00288e;
+  color: #00288e;
 }
