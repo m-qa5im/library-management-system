@@ -19,8 +19,8 @@
   --border: var(--color-outline-variant, #c4c5d5);
   --border-light: rgba(196, 197, 213, 0.4);
   
-  --font-display: Lato, Georgia, serif;
-  --font-body: Lato, system-ui, -apple-system, sans-serif;
+  --font-display: Raleway, system-ui, -apple-system, sans-serif;
+  --font-body: 'Merriweather', Georgia, serif;
   
   /* Timing & Deceleration Easing */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);

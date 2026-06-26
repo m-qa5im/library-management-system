@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../services/authService';
 import { useToast } from '../context/ToastContext';
@@ -7,6 +7,10 @@ import './AuthPage.css';
 export default function Signup() {
   const navigate = useNavigate();
   const toast = useToast();
+
+  useEffect(() => {
+    document.title = 'Portal Signup | Library Management System';
+  }, []);
 
   const [formData, setFormData] = useState({
     fullName: '',

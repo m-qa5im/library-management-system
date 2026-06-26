@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { getMemberProfile, loginUser } from '../services/authService';
@@ -11,6 +11,10 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const toast = useToast();
+
+  useEffect(() => {
+    document.title = 'Portal Login | Library Management System';
+  }, []);
 
   const [formData, setFormData] = useState({
     email: '',

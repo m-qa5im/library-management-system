@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { updateBook, deleteBook } from '../services/adminService';
 import { useToast } from '../context/ToastContext';
 import { SearchIcon, PlusIcon, EyeIcon, PencilIcon, TrashIcon, CloseIcon, ExportIcon } from './Icons';
@@ -59,6 +60,19 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
       }
     }
   }, [editForm.isbn]);
+
+  // Lock parent body scrolling when modals are open
+  useEffect(() => {
+    const hasModal = !!(editingBook || selectedBookPreview || deletingBook);
+    if (hasModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [editingBook, selectedBookPreview, deletingBook]);
 
   // Filter books list on local search query
   const filteredBooks = useMemo(() => {
@@ -426,10 +440,9 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
 
       {/* ─── MODALS ─── */}
 
-      {/* 5. READ-ONLY PREVIEW MODAL */}
-      {selectedBookPreview && (
+           {selectedBookPreview && createPortal(
         <div className="modal-backdrop" onClick={() => setSelectedBookPreview(null)}>
-          <div className="modal-content" style={{ width: '600px', maxWidth: '95%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Book Details Summary</h3>
               <button className="modal-close-btn" onClick={() => setSelectedBookPreview(null)} aria-label="Close modal">
@@ -465,7 +478,7 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
                       {selectedBookPreview.description || 'No descriptive overview is currently available for this catalog asset.'}
                     </p>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px', backgroundColor: '#f7f9ff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e7ff' }}>
+                  <div className="modal-grid-2col" style={{ marginTop: '4px', backgroundColor: '#f7f9ff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e7ff' }}>
                     <div>
                       <span className="text-label-md" style={{ display: 'block', color: '#757684' }}>ISBN Reference</span>
                       <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#131b2e', marginTop: '4px', display: 'block' }}>{selectedBookPreview.isbn || 'N/A'}</span>
@@ -494,13 +507,13 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* 6. EDIT BOOK MODAL */}
-      {editingBook && (
+      {editingBook && createPortal(
         <div className="modal-backdrop" onClick={() => { setEditingBook(null); closeModal(); }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-xl" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Edit Book Asset Specifications</h3>
               <button className="modal-close-btn" onClick={() => { setEditingBook(null); closeModal(); }} aria-label="Close modal">
@@ -508,76 +521,76 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
               </button>
             </div>
             <form onSubmit={handleEditBookSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label htmlFor="modal-edit-title">Book Title *</label>
-                  <input
-                    id="modal-edit-title"
-                    type="text"
-                    className="form-input"
-                    value={editForm.title}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+              <div className="modal-body" style={{ padding: '16px 24px' }}>
+                <div className="modal-grid-3col">
+                  <div className="form-group col-span-3">
+                    <label htmlFor="modal-edit-title">Book Title *</label>
+                    <input
+                      id="modal-edit-title"
+                      type="text"
+                      className="form-input"
+                      value={editForm.title}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-author">Author *</label>
-                  <input
-                    id="modal-edit-author"
-                    type="text"
-                    className="form-input"
-                    value={editForm.author}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, author: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+                  <div className="form-group">
+                    <label htmlFor="modal-edit-author">Author *</label>
+                    <input
+                      id="modal-edit-author"
+                      type="text"
+                      className="form-input"
+                      value={editForm.author}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, author: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-category">Category</label>
-                  <select
-                    id="modal-edit-category"
-                    className="form-select"
-                    value={editForm.category}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
-                    disabled={submitting}
-                  >
-                    <option value="General">General</option>
-                    <option value="Fiction">Fiction</option>
-                    <option value="Non-Fiction">Non-Fiction</option>
-                    <option value="Science & Tech">Science & Tech</option>
-                    <option value="History">History</option>
-                    <option value="Biography">Biography</option>
-                  </select>
-                </div>
+                  <div className="form-group">
+                    <label htmlFor="modal-edit-category">Category</label>
+                    <select
+                      id="modal-edit-category"
+                      className="form-select"
+                      value={editForm.category}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, category: e.target.value }))}
+                      disabled={submitting}
+                    >
+                      <option value="General">General</option>
+                      <option value="Fiction">Fiction</option>
+                      <option value="Non-Fiction">Non-Fiction</option>
+                      <option value="Science & Tech">Science & Tech</option>
+                      <option value="History">History</option>
+                      <option value="Biography">Biography</option>
+                    </select>
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-isbn">ISBN Reference</label>
-                  <input
-                    id="modal-edit-isbn"
-                    type="text"
-                    className="form-input"
-                    value={editForm.isbn}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, isbn: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+                  <div className="form-group">
+                    <label htmlFor="modal-edit-isbn">ISBN Reference</label>
+                    <input
+                      id="modal-edit-isbn"
+                      type="text"
+                      className="form-input"
+                      value={editForm.isbn}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, isbn: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-cover">Cover Image URL</label>
-                  <input
-                    id="modal-edit-cover"
-                    type="url"
-                    className="form-input"
-                    value={editForm.coverImageUrl}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, coverImageUrl: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+                  <div className="form-group col-span-1">
+                    <label htmlFor="modal-edit-cover">Cover Image URL</label>
+                    <input
+                      id="modal-edit-cover"
+                      type="url"
+                      className="form-input"
+                      value={editForm.coverImageUrl}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, coverImageUrl: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
 
-                <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label htmlFor="modal-edit-total-qty">Total Quantity *</label>
+                  <div className="form-group col-span-1">
+                    <label htmlFor="modal-edit-total-qty">Total Qty *</label>
                     <input
                       id="modal-edit-total-qty"
                       type="number"
@@ -596,8 +609,9 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
                       required
                     />
                   </div>
-                  <div>
-                    <label htmlFor="modal-edit-avail-qty">Available Quantity *</label>
+
+                  <div className="form-group col-span-1">
+                    <label htmlFor="modal-edit-avail-qty">Available Qty *</label>
                     <input
                       id="modal-edit-avail-qty"
                       type="number"
@@ -615,40 +629,41 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
                       required
                     />
                   </div>
-                </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-status">Availability Status</label>
-                  <select
-                    id="modal-edit-status"
-                    className="form-select"
-                    value={editForm.availabilityStatus}
-                    onChange={(e) => setEditForm((prev) => {
-                      const status = e.target.value;
-                      let avail = prev.availableQuantity;
-                      if (status === 'Available' && avail === 0) {
-                        avail = 1;
-                      } else if (status === 'Issued') {
-                        avail = 0;
-                      }
-                      return { ...prev, availabilityStatus: status, availableQuantity: avail };
-                    })}
-                    disabled={submitting}
-                  >
-                    <option value="Available">Available</option>
-                    <option value="Issued">Issued</option>
-                  </select>
-                </div>
+                  <div className="form-group col-span-1">
+                    <label htmlFor="modal-edit-status">Availability Status</label>
+                    <select
+                      id="modal-edit-status"
+                      className="form-select"
+                      value={editForm.availabilityStatus}
+                      onChange={(e) => setEditForm((prev) => {
+                        const status = e.target.value;
+                        let avail = prev.availableQuantity;
+                        if (status === 'Available' && avail === 0) {
+                          avail = 1;
+                        } else if (status === 'Issued') {
+                          avail = 0;
+                        }
+                        return { ...prev, availabilityStatus: status, availableQuantity: avail };
+                      })}
+                      disabled={submitting}
+                    >
+                      <option value="Available">Available</option>
+                      <option value="Issued">Issued</option>
+                    </select>
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-desc">Description (Optional)</label>
-                  <textarea
-                    id="modal-edit-desc"
-                    className="form-input form-textarea"
-                    value={editForm.description}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
-                    disabled={submitting}
-                  ></textarea>
+                  <div className="form-group col-span-2">
+                    <label htmlFor="modal-edit-desc">Description (Optional)</label>
+                    <textarea
+                      id="modal-edit-desc"
+                      className="form-input form-textarea"
+                      style={{ height: '44px', minHeight: '44px' }}
+                      value={editForm.description}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+                      disabled={submitting}
+                    ></textarea>
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
@@ -661,13 +676,14 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 7. DELETE BOOK CONFIRMATION MODAL */}
-      {deletingBook && (
+      {deletingBook && createPortal(
         <div className="modal-backdrop" onClick={() => { setDeletingBook(null); closeModal(); }}>
-          <div className="modal-content" style={{ width: '400px', maxWidth: '95%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title" style={{ color: '#ba1a1a' }}>Confirm Asset Purge</h3>
               <button className="modal-close-btn" onClick={() => { setDeletingBook(null); closeModal(); }} aria-label="Close modal">
@@ -691,7 +707,8 @@ export default function BookInventoryPanel({ books, loading, token, onRefresh, o
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

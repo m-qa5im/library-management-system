@@ -63,15 +63,15 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // ─── DELIGHT: DEVTOOLS EASTER EGG & CONSOLE WELCOME ───
   useEffect(() => {
+    document.title = 'Admin Dashboard | Library Management System';
     console.log(
       '%c📚 Academic Archive System',
-      'color: #00288e; font-family: "Lato", sans-serif; font-size: 20px; font-weight: 900; text-shadow: 1px 1px 0px #eaedff;'
+      'color: #00288e; font-family: "Raleway", sans-serif; font-size: 20px; font-weight: 900; text-shadow: 1px 1px 0px #eaedff;'
     );
     console.log(
       '%cSystem operational. Ready to index knowledge and coordinate resources.',
-      'color: #505f76; font-family: "Lato", sans-serif; font-size: 14px; font-weight: 500;'
+      'color: #505f76; font-family: "Merriweather", serif; font-size: 14px; font-weight: 500;'
     );
   }, []);
 
@@ -741,7 +741,7 @@ export default function Dashboard() {
                   <p className="db-status-desc">
                     {syncError
                       ? 'Connection offline or failed to fetch database updates.'
-                      : `System is operational. Database synced at ${lastSync ? lastSync.toLocaleTimeString() : '—'}.`
+                      : `System is operational. Database synced at ${lastSync ? lastSync.toLocaleTimeString() : '-'}.`
                     }
                   </p>
                 </section>

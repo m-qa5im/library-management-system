@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { returnTransaction, searchActiveTransactions } from '../services/adminService';
 import { useToast } from '../context/ToastContext';
 import AutocompleteLookup from './AutocompleteLookup';
@@ -25,6 +26,16 @@ export default function ReturnBookModal({ isOpen, onClose, token, onSuccess }) {
       setReturnTransactionObj(null);
       setReturnDate(getTodayString());
     }
+  }, [isOpen]);
+
+  // Lock body scroll when modal is active
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -77,7 +88,7 @@ export default function ReturnBookModal({ isOpen, onClose, token, onSuccess }) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -158,7 +169,7 @@ export default function ReturnBookModal({ isOpen, onClose, token, onSuccess }) {
                       {getTransactionStatus(returnTransactionObj)}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm text-slate-700 mt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-slate-700 mt-1">
                     <div>
                       <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Book Title</p>
                       <p className="font-semibold text-slate-800 truncate">{returnTransactionObj.book?.title}</p>
@@ -265,6 +276,7 @@ export default function ReturnBookModal({ isOpen, onClose, token, onSuccess }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

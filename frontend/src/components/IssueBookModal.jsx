@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { issueBook, searchMembers, searchBooks } from '../services/adminService';
 import { useToast } from '../context/ToastContext';
 import AutocompleteLookup from './AutocompleteLookup';
@@ -32,6 +33,16 @@ export default function IssueBookModal({ isOpen, onClose, token, onSuccess }) {
       setIssueDate(getTodayString());
       setIssueDueDate(getTodayString(14));
     }
+  }, [isOpen]);
+
+  // Lock body scroll when modal is active
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -85,7 +96,7 @@ export default function IssueBookModal({ isOpen, onClose, token, onSuccess }) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -233,7 +244,7 @@ export default function IssueBookModal({ isOpen, onClose, token, onSuccess }) {
 
           {issueStep === 3 && (
             <div className="modal-body text-left">
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
                   <strong className="text-slate-500 block mb-1 text-[10px] uppercase tracking-wider font-bold">
                     Selected Member
@@ -333,6 +344,7 @@ export default function IssueBookModal({ isOpen, onClose, token, onSuccess }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

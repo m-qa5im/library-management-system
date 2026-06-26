@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { registerAndCreateMember } from '../services/adminService';
 import { useToast } from '../context/ToastContext';
 import { CloseIcon } from './Icons';
@@ -82,9 +83,19 @@ export default function AddMemberModal({ isOpen, onClose, token, onSuccess }) {
     });
   };
 
-  return (
+  // Lock body scroll when modal is active
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3 className="modal-title">Establish Member Profile</h3>
           <button className="modal-close-btn" onClick={onClose} aria-label="Close modal">
@@ -93,47 +104,49 @@ export default function AddMemberModal({ isOpen, onClose, token, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="form-group">
-              <label htmlFor="modal-member-name">Full Name *</label>
-              <input
-                id="modal-member-name"
-                type="text"
-                className="form-input"
-                placeholder="John Doe"
-                value={memberForm.fullName}
-                onChange={(e) => setMemberForm((prev) => ({ ...prev, fullName: e.target.value }))}
-                disabled={submitting}
-                required
-              />
-            </div>
+          <div className="modal-body" style={{ padding: '16px 24px' }}>
+            <div className="modal-grid-3col">
+              <div className="form-group">
+                <label htmlFor="modal-member-name">Full Name *</label>
+                <input
+                  id="modal-member-name"
+                  type="text"
+                  className="form-input"
+                  placeholder="John Doe"
+                  value={memberForm.fullName}
+                  onChange={(e) => setMemberForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                  disabled={submitting}
+                  required
+                />
+              </div>
 
-            <div className="form-group">
-              <label htmlFor="modal-member-email">Email Address *</label>
-              <input
-                id="modal-member-email"
-                type="email"
-                className="form-input"
-                placeholder="john.doe@example.com"
-                value={memberForm.email}
-                onChange={(e) => setMemberForm((prev) => ({ ...prev, email: e.target.value }))}
-                disabled={submitting}
-                required
-              />
-            </div>
+              <div className="form-group">
+                <label htmlFor="modal-member-email">Email Address *</label>
+                <input
+                  id="modal-member-email"
+                  type="email"
+                  className="form-input"
+                  placeholder="john.doe@example.com"
+                  value={memberForm.email}
+                  onChange={(e) => setMemberForm((prev) => ({ ...prev, email: e.target.value }))}
+                  disabled={submitting}
+                  required
+                />
+              </div>
 
-            <div className="form-group">
-              <label htmlFor="modal-member-pass">Password (Min 8 chars, 1 Upper, 1 Lower, 1 Num) *</label>
-              <input
-                id="modal-member-pass"
-                type="password"
-                className="form-input"
-                placeholder="••••••••"
-                value={memberForm.password}
-                onChange={(e) => setMemberForm((prev) => ({ ...prev, password: e.target.value }))}
-                disabled={submitting}
-                required
-              />
+              <div className="form-group">
+                <label htmlFor="modal-member-pass">Password *</label>
+                <input
+                  id="modal-member-pass"
+                  type="password"
+                  className="form-input"
+                  placeholder="••••••••"
+                  value={memberForm.password}
+                  onChange={(e) => setMemberForm((prev) => ({ ...prev, password: e.target.value }))}
+                  disabled={submitting}
+                  required
+                />
+              </div>
             </div>
           </div>
           <div className="modal-footer">
@@ -146,6 +159,7 @@ export default function AddMemberModal({ isOpen, onClose, token, onSuccess }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

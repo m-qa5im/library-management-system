@@ -15,6 +15,10 @@ export default function MemberDashboard() {
   // ─── TAB STATE ───
   const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'loans'
 
+  useEffect(() => {
+    document.title = 'Member Dashboard | Library Management System';
+  }, []);
+
   // ─── DATA STATE ───
   const [books, setBooks] = useState([]);
   const [loans, setLoans] = useState([]);
@@ -404,7 +408,7 @@ export default function MemberDashboard() {
 
                         <div className="mdb-card-actions">
                           {isPending ? (
-                            // Amber awaiting-approval badge — non-interactive
+                            // Amber awaiting-approval badge - non-interactive
                             <>
                               <div className="mdb-btn mdb-btn-pending" aria-live="polite">
                                 <HourglassIcon />
@@ -438,7 +442,7 @@ export default function MemberDashboard() {
                               </button>
                             </>
                           ) : (
-                            // Available — show Request Borrow + View Details
+                            // Available - show Request Borrow + View Details
                             <>
                               <button
                                 className="mdb-btn mdb-btn-primary"

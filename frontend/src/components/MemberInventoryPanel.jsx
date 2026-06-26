@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { updateMember, deleteMember } from '../services/adminService';
 import { useToast } from '../context/ToastContext';
 
@@ -94,6 +95,19 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
 
     return pages;
   };
+
+  // Lock parent body scrolling when modals are open
+  useEffect(() => {
+    const hasModal = !!(editingMember || selectedMemberPreview || deletingMember);
+    if (hasModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [editingMember, selectedMemberPreview, deletingMember]);
 
   const handleStartEdit = (member) => {
     const userObj = getMemberUser(member);
@@ -361,9 +375,9 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
       {/* ─── MODALS ─── */}
 
       {/* 1. READ-ONLY PREVIEW MODAL */}
-      {selectedMemberPreview && (
+      {selectedMemberPreview && createPortal(
         <div className="modal-backdrop" onClick={() => setSelectedMemberPreview(null)}>
-          <div className="modal-content" style={{ width: '500px', maxWidth: '95%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Member Profile Summary</h3>
               <button className="modal-close-btn" onClick={() => setSelectedMemberPreview(null)} aria-label="Close modal">
@@ -386,7 +400,7 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: '#f7f9ff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e7ff' }}>
+                <div className="modal-grid-2col" style={{ backgroundColor: '#f7f9ff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e7ff' }}>
                   <div>
                     <span className="text-label-md" style={{ display: 'block', color: '#757684' }}>Member Code</span>
                     <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#00288e', marginTop: '4px', display: 'block' }}>
@@ -414,13 +428,14 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 2. EDIT MEMBER PROFILE MODAL */}
-      {editingMember && (
+      {editingMember && createPortal(
         <div className="modal-backdrop" onClick={() => { setEditingMember(null); closeModal(); }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-lg" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Edit Member Profile</h3>
               <button className="modal-close-btn" onClick={() => { setEditingMember(null); closeModal(); }} aria-label="Close modal">
@@ -428,64 +443,66 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
               </button>
             </div>
             <form onSubmit={handleEditMemberSubmit}>
-              <div className="modal-body">
-                <div style={{ marginBottom: '20px' }}>
+              <div className="modal-body" style={{ padding: '16px 24px' }}>
+                <div style={{ marginBottom: '12px' }}>
                   <p style={{ margin: 0, fontSize: '0.9rem', color: '#505f76' }}>
                     Modifying profile details for member code <strong>{editingMember.memberCode}</strong>.
                   </p>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-member-name">Full Name *</label>
-                  <input
-                    id="modal-edit-member-name"
-                    type="text"
-                    className="form-input"
-                    placeholder="John Doe"
-                    value={editForm.fullName || ''}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, fullName: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+                <div className="modal-grid-2col">
+                  <div className="form-group">
+                    <label htmlFor="modal-edit-member-name">Full Name *</label>
+                    <input
+                      id="modal-edit-member-name"
+                      type="text"
+                      className="form-input"
+                      placeholder="John Doe"
+                      value={editForm.fullName || ''}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, fullName: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-member-email">Email Address *</label>
-                  <input
-                    id="modal-edit-member-email"
-                    type="email"
-                    className="form-input"
-                    placeholder="john.doe@example.com"
-                    value={editForm.email || ''}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                    disabled={submitting}
-                  />
-                </div>
+                  <div className="form-group">
+                    <label htmlFor="modal-edit-member-email">Email Address *</label>
+                    <input
+                      id="modal-edit-member-email"
+                      type="email"
+                      className="form-input"
+                      placeholder="john.doe@example.com"
+                      value={editForm.email || ''}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-member-status">Account Status</label>
-                  <select
-                    id="modal-edit-member-status"
-                    className="form-select"
-                    value={editForm.status}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
-                    disabled={submitting}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Suspended">Suspended</option>
-                  </select>
-                </div>
+                  <div className="form-group">
+                    <label htmlFor="modal-edit-member-status">Account Status</label>
+                    <select
+                      id="modal-edit-member-status"
+                      className="form-select"
+                      value={editForm.status}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
+                      disabled={submitting}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Suspended">Suspended</option>
+                    </select>
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="modal-edit-member-password">Update Password (Optional - Min 8 chars, 1 Upper, 1 Lower, 1 Num)</label>
-                  <input
-                    id="modal-edit-member-password"
-                    type="password"
-                    className="form-input"
-                    placeholder="Enter new password to change..."
-                    value={editForm.password || ''}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, password: e.target.value }))}
-                    disabled={submitting}
-                  />
+                  <div className="form-group">
+                    <label htmlFor="modal-edit-member-password">Update Password (Optional)</label>
+                    <input
+                      id="modal-edit-member-password"
+                      type="password"
+                      className="form-input"
+                      placeholder="Enter new password to change..."
+                      value={editForm.password || ''}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, password: e.target.value }))}
+                      disabled={submitting}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
@@ -498,13 +515,14 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 3. DELETE MEMBER CONFIRMATION MODAL */}
-      {deletingMember && (
+      {deletingMember && createPortal(
         <div className="modal-backdrop" onClick={() => { setDeletingMember(null); closeModal(); }}>
-          <div className="modal-content" style={{ width: '400px', maxWidth: '95%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title" style={{ color: '#ba1a1a' }}>Confirm Profile Deletion</h3>
               <button className="modal-close-btn" onClick={() => { setDeletingMember(null); closeModal(); }} aria-label="Close modal">
@@ -528,7 +546,8 @@ export default function MemberInventoryPanel({ members, users = [], loading, tok
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

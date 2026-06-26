@@ -41,7 +41,7 @@ export default function CirculationQueuePanel({ token, onQueueCountChange }) {
     try {
       setActioningId(tx.id);
       await approveRequest(tx.id, token);
-      toast.success(`Approved — "${tx.book?.title ?? 'Book'}" issued to ${tx.member?.user?.fullName ?? 'member'}.`);
+      toast.success(`Approved: "${tx.book?.title ?? 'Book'}" issued to ${tx.member?.user?.fullName ?? 'member'}.`);
       // Remove from local list immediately for instant feedback
       setRequests(prev => prev.filter(r => r.id !== tx.id));
       setTotalCount(prev => {
@@ -61,7 +61,7 @@ export default function CirculationQueuePanel({ token, onQueueCountChange }) {
     try {
       setActioningId(tx.id);
       await rejectRequest(tx.id, token);
-      toast.info(`Rejected — request for "${tx.book?.title ?? 'Book'}" dismissed.`);
+      toast.info(`Rejected: request for "${tx.book?.title ?? 'Book'}" dismissed.`);
       setRequests(prev => prev.filter(r => r.id !== tx.id));
       setTotalCount(prev => {
         const next = prev - 1;
@@ -77,7 +77,7 @@ export default function CirculationQueuePanel({ token, onQueueCountChange }) {
 
   // ─── FORMAT DATE ───
   const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return '-';
     const d = new Date(dateStr);
     return d.toLocaleString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric',
@@ -158,16 +158,16 @@ export default function CirculationQueuePanel({ token, onQueueCountChange }) {
                     <tr key={tx.id} className="crq-row-approve">
                       <td style={{ fontWeight: 600, color: '#505f76' }}>{reqId}</td>
                       <td style={{ fontWeight: 600, color: '#131b2e' }}>
-                        {tx.member?.user?.fullName ?? '—'}
+                        {tx.member?.user?.fullName ?? '-'}
                       </td>
                       <td>
                         <span className="crq-member-code">
-                          {tx.member?.memberCode ?? '—'}
+                          {tx.member?.memberCode ?? '-'}
                         </span>
                       </td>
                       <td>
                         <div className="crq-book-cell">
-                          <span className="crq-book-title">{tx.book?.title ?? '—'}</span>
+                          <span className="crq-book-title">{tx.book?.title ?? '-'}</span>
                           {tx.book?.isbn && (
                             <span className="crq-book-isbn">ISBN: {tx.book.isbn}</span>
                           )}

@@ -99,6 +99,7 @@ export default function LandingPage() {
   const closeMenu = () => setMenuOpen(false);
 
   useEffect(() => {
+    document.title = 'Library Management System';
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -525,7 +526,7 @@ function DashboardSvg() {
       <circle cx="642" cy="424" r="92" fill="#dde1ff" opacity="0.25" className="svg-fade-in" style={{ '--i': 1 }} />
 
       <rect x="110" y="86" width="540" height="356" rx="16" fill="#ffffff" stroke="#c4c5d5" className="svg-fade-in" style={{ '--i': 2 }} />
-      <rect x="150" y="126" width="460" height="258" rx="12" fill="url(#heroScreen)" stroke="#cbd5e1" strokeWidth="1" className="svg-fade-in" style={{ '--i': 3 }} />
+      <rect x="150" y="126" width="460" height="258" rx="12" fill="url(#heroScreen)" stroke="#c4c5d5" strokeWidth="1" className="svg-fade-in" style={{ '--i': 3 }} />
 
       <rect x="178" y="154" width="128" height="14" rx="7" fill="#00288e" className="svg-fade-in" style={{ '--i': 4 }} />
       <rect x="178" y="180" width="92" height="8" rx="4" fill="#64748b" opacity="0.7" className="svg-fade-in" style={{ '--i': 5 }} />

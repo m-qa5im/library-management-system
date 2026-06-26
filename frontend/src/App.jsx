@@ -13,7 +13,7 @@ function App() {
   return (
     <Suspense
       fallback={
-        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'Lato, sans-serif', color: '#1e40af', backgroundColor: '#f8fafc' }}>
+        <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'Merriweather, serif', color: '#1e40af', backgroundColor: '#f8fafc' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
             <div style={{ width: '40px', height: '40px', border: '4px solid #dde1ff', borderTopColor: '#1e40af', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
             <style>{`

@@ -143,7 +143,7 @@ export default function TransactionPanel({ transactions = [], loading, token, on
       tx.member?.user?.fullName || tx.member?.memberCode || 'Unknown',
       tx.issueDate ? new Date(tx.issueDate).toLocaleDateString() : '',
       tx.dueDate ? new Date(tx.dueDate).toLocaleDateString() : '',
-      tx.returnDate ? new Date(tx.returnDate).toLocaleDateString() : '—',
+      tx.returnDate ? new Date(tx.returnDate).toLocaleDateString() : '-',
       getTransactionStatus(tx),
     ]);
 
@@ -166,7 +166,7 @@ export default function TransactionPanel({ transactions = [], loading, token, on
 
   // ─── FORMAT DATE STRING HELPER ───
   const formatDateString = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return '-';
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
   };
@@ -442,7 +442,7 @@ export default function TransactionPanel({ transactions = [], loading, token, on
       {/* ─── INSPECT DETAIL MODAL OVERLAY ─── */}
       {selectedTxPreview && (
         <div className="modal-backdrop" onClick={() => setSelectedTxPreview(null)}>
-          <div className="modal-content" style={{ width: '550px', maxWidth: '95%' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-md" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Circulation Lease Summary</h3>
               <button className="modal-close-btn" onClick={() => setSelectedTxPreview(null)} aria-label="Close modal">
@@ -519,7 +519,7 @@ export default function TransactionPanel({ transactions = [], loading, token, on
                   <h4 style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: '#757684', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Transactions Ledger Timeline
                   </h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', padding: '12px', backgroundColor: '#f7f9ff', borderRadius: '8px', border: '1px solid #e2e7ff' }}>
+                  <div className="modal-grid-3col" style={{ padding: '12px', backgroundColor: '#f7f9ff', borderRadius: '8px', border: '1px solid #e2e7ff' }}>
                     <div>
                       <span style={{ fontSize: '0.75rem', color: '#757684', display: 'block' }}>Issue Date</span>
                       <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#131b2e', display: 'block', marginTop: '2px' }}>
