@@ -21,11 +21,10 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 
 builder.Services.AddCors(options =>
 {
-    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy
-            .WithOrigins(allowedOrigins)
+            .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod()
             .SetPreflightMaxAge(TimeSpan.FromMinutes(10));

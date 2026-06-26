@@ -1,4 +1,5 @@
-export const API_BASE_URL = 'http://localhost:5117';
+const hostname = typeof window !== 'undefined' && window.location ? window.location.hostname : 'localhost';
+export const API_BASE_URL = `http://${hostname}:5117`;
 
 export async function handleResponse(response) {
   let data = null;
